@@ -1,0 +1,111 @@
+{
+  "projectType": "api-service",
+  "projectName": "HGT EAM WebServices",
+  "projectDescription": "RESTful API gateway for INFOR EAM (Enterprise Asset Management) with intelligent SQLite caching",
+  "theme": "aspen",
+  "primaryColor": "#0066cc",
+  "lightColor": "#3399ff",
+  "darkColor": "#004d99",
+  "navigation": {
+    "tabs": [
+      {
+        "tab": "Documentation",
+        "groups": [
+          {
+            "group": "Get Started",
+            "pages": [
+              "introduction",
+              "quickstart"
+            ]
+          },
+          {
+            "group": "Core Concepts",
+            "pages": [
+              "concepts/architecture",
+              "concepts/caching",
+              "concepts/authentication"
+            ]
+          },
+          {
+            "group": "Guides",
+            "pages": [
+              "guides/setup",
+              "guides/configuration",
+              "guides/rate-limiting"
+            ]
+          }
+        ]
+      },
+      {
+        "tab": "API Reference",
+        "groups": [
+          {
+            "group": "Overview",
+            "pages": [
+              "api/overview",
+              "api/authentication"
+            ]
+          },
+          {
+            "group": "Provision",
+            "pages": [
+              "api/provision/contracts",
+              "api/provision/purchase-orders",
+              "api/provision/purchase-requests"
+            ]
+          },
+          {
+            "group": "Accounting",
+            "pages": [
+              "api/accounting/transactions",
+              "api/accounting/kardex"
+            ]
+          },
+          {
+            "group": "Accounts Payable",
+            "pages": [
+              "api/accounts-payable/invoice-vouchers",
+              "api/accounts-payable/billing-finance"
+            ]
+          },
+          {
+            "group": "Management Control",
+            "pages": [
+              "api/management-control/provisions",
+              "api/management-control/maintenance-costs"
+            ]
+          },
+          {
+            "group": "Models",
+            "pages": [
+              "api/models/request",
+              "api/models/response"
+            ]
+          }
+        ]
+      }
+    ]
+  },
+  "keyFeatures": [
+    "INFOR EAM SOAP service integration",
+    "Intelligent SQLite caching system",
+    "Basic authentication with rate limiting (60 req/min)",
+    "Clean architecture with CQRS pattern",
+    "Automatic OpenAPI documentation with Scalar",
+    "Efficient pagination for large datasets",
+    "Multi-category endpoints (Provision, Accounting, Accounts Payable, Management)"
+  ],
+  "publicApiSurface": [
+    "GET /api/provisions/contracts",
+    "GET /api/provisions/purchase/order/audit",
+    "GET /api/provisions/view/purchase/order",
+    "GET /api/provisions/view/purchase/request",
+    "GET /api/accounting/transactions",
+    "GET /api/accounting/kardex",
+    "GET /api/accounts-payable/invoice/vouchers/ecuador",
+    "GET /api/accounts-payable/billing/finance/view",
+    "GET /api/accounts-payable/billing/finance/order-purchase",
+    "GET /api/management-control/provisions",
+    "GET /api/management-control/maintenance/costs"
+  ]
+}
