@@ -1,0 +1,310 @@
+---
+title: 'Kardex'
+description: 'Informe de Kardex'
+---
+
+## Get Kardex Report
+
+<api-endpoint method="GET" path="/api/accounting/kardex" />
+
+Retrieves the Kardex report. This endpoint represents the Cognos Kardex report, providing detailed inventory movement tracking.
+
+### Authentication
+
+<auth-required />
+
+This endpoint requires authentication via Bearer token.
+
+### Query Parameters
+
+<param-field query="TypeFilter" type="integer" required>
+  Tipo de filtro:
+  - `1` - PreviousDay (día anterior)
+  - `2` - PreviousMonth (mes anterior)
+  - `3` - CurrentMonth (mes actual)
+  - `4` - LastYear (año anterior)
+  - `5` - FullMonthByYear (mes y año en concreto)
+  - `6` - Custom
+  - `7` - AllRecords
+</param-field>
+
+<param-field query="Month" type="integer">
+  Mes en concreto a buscar. Valid range: 1-12. Required when TypeFilter is 5 (FullMonthByYear).
+</param-field>
+
+<param-field query="Year" type="integer">
+  Año en concreto. Valid values start from the previous year. Required when TypeFilter is 5 (FullMonthByYear).
+</param-field>
+
+<param-field query="Page" type="integer" default="1">
+  Número de página. Starts at 1.
+</param-field>
+
+<param-field query="PagSize" type="integer">
+  Número de registros a obtener (page size).
+</param-field>
+
+### Response
+
+<response-field name="currentPage" type="integer">
+  The current page number
+</response-field>
+
+<response-field name="gridName" type="string">
+  Name of the grid ("Kardex")
+</response-field>
+
+<response-field name="gridId" type="long">
+  Unique identifier for the grid
+</response-field>
+
+<response-field name="totalRecordsReturned" type="integer">
+  Number of records returned in this page
+</response-field>
+
+<response-field name="totalPages" type="integer">
+  Total number of pages available
+</response-field>
+
+<response-field name="totalRecords" type="integer">
+  Total number of records across all pages
+</response-field>
+
+<response-field name="dataRecord" type="object">
+  Contains the grid data structure with fields and rows
+  
+  <expandable title="DataRecord Properties">
+    <response-field name="fields" type="array">
+      Array of field definitions for the grid columns
+      
+      <expandable title="Field Properties">
+        <response-field name="id" type="integer">
+          Field identifier
+        </response-field>
+        
+        <response-field name="label" type="string">
+          Display label for the field
+        </response-field>
+        
+        <response-field name="name" type="string">
+          Field name
+        </response-field>
+        
+        <response-field name="order" type="integer">
+          Display order of the field
+        </response-field>
+        
+        <response-field name="type" type="string">
+          Data type of the field
+        </response-field>
+        
+        <response-field name="visible" type="boolean">
+          Whether the field is visible
+        </response-field>
+        
+        <response-field name="width" type="integer">
+          Display width of the field
+        </response-field>
+      </expandable>
+    </response-field>
+    
+    <response-field name="rows" type="array">
+      Array of data rows. Each row is a dictionary with field names as keys.
+    </response-field>
+  </expandable>
+</response-field>
+
+### Example Request
+
+```bash cURL
+curl -X GET "https://api.example.com/api/accounting/kardex?TypeFilter=3&Page=1&PagSize=50" \
+  -H "Authorization: Bearer YOUR_ACCESS_TOKEN" \
+  -H "Accept: application/json"
+```
+
+```bash Get current month kardex
+curl -X GET "https://api.example.com/api/accounting/kardex?TypeFilter=3&Page=1&PagSize=100" \
+  -H "Authorization: Bearer YOUR_ACCESS_TOKEN"
+```
+
+```bash Get specific month and year
+curl -X GET "https://api.example.com/api/accounting/kardex?TypeFilter=5&Month=12&Year=2024&Page=1&PagSize=50" \
+  -H "Authorization: Bearer YOUR_ACCESS_TOKEN"
+```
+
+```bash Get all records
+curl -X GET "https://api.example.com/api/accounting/kardex?TypeFilter=7&Page=1&PagSize=500" \
+  -H "Authorization: Bearer YOUR_ACCESS_TOKEN"
+```
+
+### Example Response
+
+<response-example>
+```json 200 OK
+{
+  "currentPage": 1,
+  "gridName": "Kardex",
+  "gridId": 54321,
+  "totalRecordsReturned": 50,
+  "totalPages": 8,
+  "totalRecords": 387,
+  "dataRecord": {
+    "fields": [
+      {
+        "id": 1,
+        "label": "Item Code",
+        "name": "itemCode",
+        "order": 1,
+        "type": "string",
+        "visible": true,
+        "width": 150
+      },
+      {
+        "id": 2,
+        "label": "Description",
+        "name": "description",
+        "order": 2,
+        "type": "string",
+        "visible": true,
+        "width": 250
+      },
+      {
+        "id": 3,
+        "label": "Movement Date",
+        "name": "movementDate",
+        "order": 3,
+        "type": "date",
+        "visible": true,
+        "width": 120
+      },
+      {
+        "id": 4,
+        "label": "Movement Type",
+        "name": "movementType",
+        "order": 4,
+        "type": "string",
+        "visible": true,
+        "width": 150
+      },
+      {
+        "id": 5,
+        "label": "Quantity In",
+        "name": "quantityIn",
+        "order": 5,
+        "type": "decimal",
+        "visible": true,
+        "width": 100
+      },
+      {
+        "id": 6,
+        "label": "Quantity Out",
+        "name": "quantityOut",
+        "order": 6,
+        "type": "decimal",
+        "visible": true,
+        "width": 100
+      },
+      {
+        "id": 7,
+        "label": "Balance",
+        "name": "balance",
+        "order": 7,
+        "type": "decimal",
+        "visible": true,
+        "width": 100
+      },
+      {
+        "id": 8,
+        "label": "Unit Cost",
+        "name": "unitCost",
+        "order": 8,
+        "type": "decimal",
+        "visible": true,
+        "width": 120
+      },
+      {
+        "id": 9,
+        "label": "Total Cost",
+        "name": "totalCost",
+        "order": 9,
+        "type": "decimal",
+        "visible": true,
+        "width": 120
+      }
+    ],
+    "rows": [
+      {
+        "itemCode": "PART-1234",
+        "description": "Hydraulic Pump 5HP",
+        "movementDate": "2025-06-15T08:00:00Z",
+        "movementType": "Purchase",
+        "quantityIn": 10.0,
+        "quantityOut": 0.0,
+        "balance": 25.0,
+        "unitCost": 450.00,
+        "totalCost": 4500.00
+      },
+      {
+        "itemCode": "PART-1234",
+        "description": "Hydraulic Pump 5HP",
+        "movementDate": "2025-06-16T10:30:00Z",
+        "movementType": "Issue",
+        "quantityIn": 0.0,
+        "quantityOut": 3.0,
+        "balance": 22.0,
+        "unitCost": 450.00,
+        "totalCost": 1350.00
+      },
+      {
+        "itemCode": "PART-5678",
+        "description": "Bearing SKF 6205",
+        "movementDate": "2025-06-16T14:15:00Z",
+        "movementType": "Purchase",
+        "quantityIn": 50.0,
+        "quantityOut": 0.0,
+        "balance": 120.0,
+        "unitCost": 15.50,
+        "totalCost": 775.00
+      }
+    ]
+  }
+}
+```
+
+```json 401 Unauthorized
+{
+  "error": "Unauthorized",
+  "message": "Invalid or missing authentication token"
+}
+```
+
+```json 500 Internal Server Error
+{
+  "error": "Internal Server Error",
+  "message": "An unexpected error occurred processing your request"
+}
+```
+</response-example>
+
+### Caching
+
+<info>This endpoint is cached for 15 minutes (900 seconds) to improve performance.</info>
+
+### Status Codes
+
+| Status Code | Description |
+|-------------|-------------|
+| 200 | Successful response with Kardex report data |
+| 401 | Unauthorized - Invalid or missing authentication |
+| 500 | Internal Server Error |
+
+### About Kardex
+
+The Kardex report provides a detailed movement history for inventory items, tracking:
+- Incoming quantities (purchases, transfers in)
+- Outgoing quantities (issues, transfers out)
+- Running balance
+- Unit and total costs
+- Movement dates and types
+
+This report is essential for inventory control, cost accounting, and audit trails.

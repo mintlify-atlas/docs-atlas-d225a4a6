@@ -1,0 +1,578 @@
+---
+title: Rate Limiting Guide
+description: Understanding and working with HGT EAM WebServices rate limits
+---
+
+HGT EAM WebServices implements rate limiting to protect the service and underlying INFOR EAM system from overload. This guide explains how rate limiting works and best practices for API consumers.
+
+## Overview
+
+The API enforces a **60 requests per minute** limit on all `/api/*` endpoints. This limit helps ensure:
+
+- Stable performance for all users
+- Protection of INFOR EAM backend systems
+- Fair resource allocation across consumers
+- Prevention of accidental DoS scenarios
+
+## How Rate Limiting Works
+
+### Rate Limit Configuration
+
+The rate limiter is configured using ASP.NET Core's built-in rate limiting middleware:
+
+```csharp HGT.EAM.WebServices/Setup/Startup.cs
+services.AddRateLimiter(options =>
+{
+    options.RejectionStatusCode = StatusCodes.Status429TooManyRequests;
+    
+    options.AddPolicy("api", httpContext =>
+    {
+        // Only for /api endpoints
+        if (!httpContext.Request.Path.StartsWithSegments("/api"))
+        {
+            return RateLimitPartition.GetNoLimiter("non-api");
+        }
+        
+        string key;
+        
+        // Authenticated users: limit by username
+        if (httpContext.User?.Identity?.IsAuthenticated == true && 
+            !string.IsNullOrWhiteSpace(httpContext.User.Identity.Name))
+        {
+            key = $"user:{httpContext.User.Identity.Name}";
+        }
+        else
+        {
+            // Anonymous/unauthenticated: limit by IP
+            var ip = httpContext.Connection.RemoteIpAddress;
+            key = ip is null ? "ip:unknown" : $"ip:{ip}";
+        }
+        
+        // Fixed window: 60 requests per minute
+        return RateLimitPartition.GetFixedWindowLimiter(
+            partitionKey: key,
+            factory: _ => new FixedWindowRateLimiterOptions
+            {
+                PermitLimit = 60,
+                Window = TimeSpan.FromMinutes(1),
+                QueueLimit = 0,
+                QueueProcessingOrder = QueueProcessingOrder.OldestFirst,
+                AutoReplenishment = true
+            });
+    });
+});
+```
+
+### Key Characteristics
+
+| Property | Value | Description |
+|----------|-------|-------------|
+| **Algorithm** | Fixed Window | Limits reset every 60 seconds |
+| **Limit** | 60 requests | Per partition (user or IP) |
+| **Window** | 1 minute | Time period for the limit |
+| **Queue** | 0 | No request queueing |
+| **Auto-replenishment** | Yes | Counter resets automatically |
+| **Affected endpoints** | `/api/*` only | Documentation endpoints not limited |
+
+## Per-User vs Per-IP Limiting
+
+### Authenticated Requests (Per-User)
+
+When you authenticate with Basic Auth, the rate limit applies to **your username**:
+
+```bash
+curl -u "john.doe:password" \
+  https://api.example.com/api/accounting/grid
+```
+
+- **Partition Key**: `user:john.doe`
+- **Limit**: 60 requests/minute for this user
+- **Shared**: All requests by `john.doe` share this limit
+- **Independent**: Other users have their own separate limits
+
+### Unauthenticated Requests (Per-IP)
+
+Without authentication, the rate limit applies to **your IP address**:
+
+```bash
+curl https://api.example.com/api/accounting/grid
+```
+
+- **Partition Key**: `ip:192.168.1.100`
+- **Limit**: 60 requests/minute for this IP
+- **Shared**: All requests from this IP share the limit
+- **Note**: May affect multiple users behind NAT/proxy
+
+<Warning>
+**NAT/Proxy Considerations:**
+
+If multiple users share the same public IP (common in corporate environments), they will share the 60 req/min limit when making unauthenticated requests. Use authentication to get individual rate limits.
+</Warning>
+
+## Fixed Window Algorithm
+
+The API uses a **fixed window** algorithm:
+
+```
+Window 1: 00:00-01:00    Window 2: 01:00-02:00    Window 3: 02:00-03:00
+[====================]   [====================]   [====================]
+ 60 requests allowed     60 requests allowed      60 requests allowed
+```
+
+### Characteristics
+
+✅ **Simple and predictable**: Easy to understand and reason about  
+✅ **Efficient**: Low computational overhead  
+✅ **Auto-reset**: Counter automatically resets at window boundary
+
+⚠️ **Burst at boundaries**: Possible to make 120 requests in 2 seconds (60 at end of window, 60 at start of next)
+
+### Example Timeline
+
+```
+Time      | Requests | Counter | Status
+----------|----------|---------|--------
+00:00:00  | 1        | 1/60    | ✓ OK
+00:00:30  | 30       | 30/60   | ✓ OK
+00:00:50  | 50       | 50/60   | ✓ OK
+00:00:55  | 60       | 60/60   | ✓ OK
+00:00:56  | 61       | 61/60   | ✗ 429 Too Many Requests
+00:01:00  | [reset]  | 0/60    | [New Window]
+00:01:01  | 1        | 1/60    | ✓ OK
+```
+
+## HTTP 429 Responses
+
+### Response Format
+
+When you exceed the rate limit, you receive an HTTP 429 response:
+
+```http
+HTTP/1.1 429 Too Many Requests
+Content-Type: application/json
+Retry-After: 45
+
+{
+  "statusCode": 429,
+  "message": "Too many requests",
+  "retryAfterSeconds": 45
+}
+```
+
+### Response Headers
+
+| Header | Example | Description |
+|--------|---------|-------------|
+| `Retry-After` | `45` | Seconds to wait before retrying |
+| `Content-Type` | `application/json` | Response format |
+
+### Custom Error Handler
+
+The error response is generated by custom logic:
+
+```csharp HGT.EAM.WebServices/Setup/Startup.cs
+options.OnRejected = async (context, token) =>
+{
+    if (context.HttpContext.Response.HasStarted)
+    {
+        return;
+    }
+    
+    context.HttpContext.Response.ContentType = "application/json";
+    
+    var retryAfter = context.Lease.TryGetMetadata(
+        MetadataName.RetryAfter, out var retryAfterValue)
+        ? (int)Math.Ceiling(retryAfterValue.TotalSeconds)
+        : (int?)null;
+    
+    if (retryAfter is not null)
+    {
+        context.HttpContext.Response.Headers.RetryAfter = 
+            retryAfter.Value.ToString();
+    }
+    
+    await context.HttpContext.Response.WriteAsync(
+        $"{{\"statusCode\":429,\"message\":\"Too many requests\",\"retryAfterSeconds\":{(retryAfter is null ? "null" : retryAfter.Value.ToString())}}}",
+        token);
+};
+```
+
+## Best Practices for API Consumers
+
+### 1. Implement Exponential Backoff
+
+When you receive a 429 response, wait before retrying:
+
+```python
+import time
+import requests
+
+def call_api_with_retry(url, max_retries=5):
+    for attempt in range(max_retries):
+        response = requests.get(url, auth=(username, password))
+        
+        if response.status_code == 200:
+            return response.json()
+        
+        if response.status_code == 429:
+            # Use Retry-After header if available
+            retry_after = int(response.headers.get('Retry-After', 0))
+            if retry_after:
+                wait_time = retry_after
+            else:
+                # Exponential backoff: 2^attempt seconds
+                wait_time = 2 ** attempt
+            
+            print(f"Rate limited. Waiting {wait_time}s before retry {attempt+1}/{max_retries}")
+            time.sleep(wait_time)
+            continue
+        
+        # Other error
+        response.raise_for_status()
+    
+    raise Exception(f"Failed after {max_retries} retries")
+```
+
+### 2. Respect Retry-After Header
+
+Always check and honor the `Retry-After` header:
+
+```javascript
+async function fetchWithRetry(url, options) {
+  const response = await fetch(url, options);
+  
+  if (response.status === 429) {
+    const retryAfter = parseInt(response.headers.get('Retry-After')) || 60;
+    console.log(`Rate limited. Retrying after ${retryAfter}s`);
+    await sleep(retryAfter * 1000);
+    return fetchWithRetry(url, options);
+  }
+  
+  return response;
+}
+
+function sleep(ms) {
+  return new Promise(resolve => setTimeout(resolve, ms));
+}
+```
+
+### 3. Implement Client-Side Rate Limiting
+
+Prevent hitting the limit by throttling requests on your side:
+
+```csharp
+using System.Threading;
+
+public class RateLimitedApiClient
+{
+    private readonly SemaphoreSlim _semaphore = new SemaphoreSlim(1, 1);
+    private DateTime _lastRequestTime = DateTime.MinValue;
+    private const int RequestsPerMinute = 50; // Stay under 60 limit
+    private readonly TimeSpan _minInterval = 
+        TimeSpan.FromMinutes(1.0 / RequestsPerMinute);
+    
+    public async Task<HttpResponseMessage> GetAsync(string url)
+    {
+        await _semaphore.WaitAsync();
+        try
+        {
+            var timeSinceLastRequest = DateTime.UtcNow - _lastRequestTime;
+            if (timeSinceLastRequest < _minInterval)
+            {
+                var delay = _minInterval - timeSinceLastRequest;
+                await Task.Delay(delay);
+            }
+            
+            _lastRequestTime = DateTime.UtcNow;
+            return await _httpClient.GetAsync(url);
+        }
+        finally
+        {
+            _semaphore.Release();
+        }
+    }
+}
+```
+
+### 4. Use Pagination Efficiently
+
+Request smaller pages more frequently rather than large pages:
+
+```bash
+# Good: Smaller pages
+curl -u "user:pass" \
+  "https://api.example.com/api/accounting/grid?page=1&pageSize=100"
+
+# Avoid: Very large pages that might time out
+curl -u "user:pass" \
+  "https://api.example.com/api/accounting/grid?page=1&pageSize=10000"
+```
+
+### 5. Cache Responses
+
+Cache API responses on your side to reduce requests:
+
+```python
+import time
+from functools import lru_cache
+
+@lru_cache(maxsize=128)
+def get_cached_data(endpoint, ttl_hash):
+    # ttl_hash changes every minute, invalidating cache
+    response = requests.get(endpoint, auth=(username, password))
+    return response.json()
+
+def get_ttl_hash(seconds=60):
+    """Return the same value within `seconds` time period"""
+    return round(time.time() / seconds)
+
+# Usage
+data = get_cached_data(
+    "https://api.example.com/api/accounting/grid",
+    ttl_hash=get_ttl_hash()
+)
+```
+
+### 6. Authenticate Your Requests
+
+Use Basic Auth to get your own rate limit partition:
+
+```bash
+# Each user gets their own 60 req/min limit
+curl -u "alice:password1" https://api.example.com/api/accounting/grid
+curl -u "bob:password2" https://api.example.com/api/provision/grid
+```
+
+### 7. Monitor Your Usage
+
+Track your API usage to stay under limits:
+
+```python
+from collections import deque
+import time
+
+class RateLimitTracker:
+    def __init__(self, max_requests=60, window_seconds=60):
+        self.max_requests = max_requests
+        self.window_seconds = window_seconds
+        self.requests = deque()
+    
+    def can_make_request(self):
+        now = time.time()
+        # Remove requests outside the window
+        while self.requests and self.requests[0] < now - self.window_seconds:
+            self.requests.popleft()
+        
+        return len(self.requests) < self.max_requests
+    
+    def record_request(self):
+        self.requests.append(time.time())
+    
+    def get_usage(self):
+        now = time.time()
+        # Clean old requests
+        while self.requests and self.requests[0] < now - self.window_seconds:
+            self.requests.popleft()
+        return f"{len(self.requests)}/{self.max_requests} requests in current window"
+
+# Usage
+tracker = RateLimitTracker()
+
+if tracker.can_make_request():
+    response = api_call()
+    tracker.record_request()
+    print(tracker.get_usage())  # "45/60 requests in current window"
+else:
+    print("Rate limit would be exceeded, waiting...")
+```
+
+## Testing Rate Limits
+
+### Quick Test Script
+
+Test the rate limit behavior:
+
+```bash
+#!/bin/bash
+# rate-limit-test.sh
+
+API_URL="https://api.example.com/api/accounting/grid"
+USER="testuser"
+PASS="testpass"
+
+echo "Testing rate limit (60 requests/minute)"
+for i in {1..65}; do
+    echo -n "Request $i: "
+    
+    STATUS=$(curl -s -o /dev/null -w "%{http_code}" \
+        -u "$USER:$PASS" \
+        "$API_URL")
+    
+    if [ "$STATUS" = "429" ]; then
+        echo "✗ Rate limited (429)"
+    elif [ "$STATUS" = "200" ]; then
+        echo "✓ Success"
+    else
+        echo "? Status: $STATUS"
+    fi
+    
+    sleep 0.5
+done
+```
+
+### Expected Output
+
+```
+Testing rate limit (60 requests/minute)
+Request 1: ✓ Success
+Request 2: ✓ Success
+...
+Request 60: ✓ Success
+Request 61: ✗ Rate limited (429)
+Request 62: ✗ Rate limited (429)
+...
+```
+
+## Troubleshooting
+
+### Issue: Getting 429 Too Early
+
+**Problem**: Receiving 429 before 60 requests.
+
+**Possible Causes**:
+1. **Multiple clients sharing IP**: Other users/apps using same IP
+2. **Previous window overlap**: Requests from previous window still counting
+3. **Multiple processes**: Multiple instances of your app running
+
+**Solutions**:
+- Use authentication to get individual rate limits
+- Coordinate rate limiting across your clients
+- Wait for window reset (check `Retry-After` header)
+
+### Issue: 429 Without Retry-After Header
+
+**Problem**: Rate limit response doesn't include `Retry-After`.
+
+**Cause**: Edge case in metadata retrieval.
+
+**Solution**: Default to waiting 60 seconds:
+
+```python
+retry_after = int(response.headers.get('Retry-After', 60))
+```
+
+### Issue: Burst Traffic Patterns
+
+**Problem**: Application needs to send bursts > 60 requests.
+
+**Solutions**:
+
+1. **Batch requests**: Design your application to batch operations
+
+2. **Async queue**: Use a queue to spread requests over time:
+
+```python
+import asyncio
+from asyncio import Queue
+
+class RequestQueue:
+    def __init__(self, rate_per_minute=50):
+        self.queue = Queue()
+        self.interval = 60.0 / rate_per_minute
+        
+    async def worker(self):
+        while True:
+            request = await self.queue.get()
+            try:
+                await self.execute_request(request)
+            finally:
+                self.queue.task_done()
+                await asyncio.sleep(self.interval)
+    
+    async def execute_request(self, request):
+        # Make API call
+        pass
+    
+    def enqueue(self, request):
+        self.queue.put_nowait(request)
+```
+
+3. **Multiple credentials**: Use multiple authenticated users, each with their own 60 req/min limit
+
+### Issue: Rate Limit Not Resetting
+
+**Problem**: Still getting 429 after waiting.
+
+**Cause**: Not waiting for full window reset.
+
+**Solution**: Wait for the full `Retry-After` duration:
+
+```python
+if response.status_code == 429:
+    retry_after = int(response.headers.get('Retry-After', 60))
+    print(f"Waiting {retry_after} seconds...")
+    time.sleep(retry_after + 1)  # Add 1 second buffer
+    # Retry now
+```
+
+## Rate Limit Exemptions
+
+The following endpoints are **not rate limited**:
+
+- `/scalar` - API documentation UI
+- `/openapi/v1.json` - OpenAPI specification
+- `/error` - Error pages
+- Static files (`/images`, `/css`, etc.)
+
+## Monitoring and Observability
+
+The application logs rate limit rejections:
+
+```log
+[INF] Request GET /api/accounting/grid responded 429 in 0.0123 ms by john.doe
+```
+
+You can track rate limit patterns through:
+- Serilog structured logs
+- Application performance monitoring (APM) tools
+- Custom middleware to track near-limit requests
+
+## Future Considerations
+
+<Note>
+The current rate limiting implementation may be enhanced in future versions:
+
+- **Sliding window**: More even distribution of requests
+- **Token bucket**: Allow controlled bursts
+- **Per-endpoint limits**: Different limits for different operations
+- **Custom limits**: Per-user or per-organization custom limits
+- **Rate limit headers**: `X-RateLimit-Remaining`, `X-RateLimit-Reset` headers
+</Note>
+
+## Summary
+
+| Aspect | Details |
+|--------|--------|
+| **Limit** | 60 requests per minute |
+| **Scope** | Per authenticated user OR per IP address |
+| **Algorithm** | Fixed window |
+| **Affected** | `/api/*` endpoints only |
+| **Response** | HTTP 429 with `Retry-After` header |
+| **Best Practice** | Implement exponential backoff and client-side throttling |
+
+## Next Steps
+
+<CardGroup cols={2}>
+  <Card title="Setup Guide" icon="rocket" href="/guides/setup">
+    Complete installation and setup
+  </Card>
+  <Card title="Configuration" icon="gear" href="/guides/configuration">
+    Configure all application settings
+  </Card>
+  <Card title="API Reference" icon="code" href="/api/overview">
+    Explore API endpoints
+  </Card>
+  <Card title="Authentication" icon="book" href="/api/authentication">
+    Learn about API authentication
+  </Card>
+</CardGroup>

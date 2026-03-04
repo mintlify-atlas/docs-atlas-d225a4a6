@@ -1,0 +1,178 @@
+---
+title: 'Response Models'
+description: 'Response model documentation for HGT EAM WebServices API'
+---
+
+## ResultDataGridModel
+
+The `ResultDataGridModel` is the standard response format for grid data queries, containing pagination information and the actual data records.
+
+### Response Fields
+
+<ResponseField name="currentPage" type="integer" required>
+  The current page number in the result set.
+</ResponseField>
+
+<ResponseField name="gridName" type="string" required>
+  The name of the grid being queried.
+</ResponseField>
+
+<ResponseField name="gridId" type="long" required>
+  Unique identifier for the grid.
+</ResponseField>
+
+<ResponseField name="totalRecordsReturned" type="integer" required>
+  Number of records returned in the current page.
+</ResponseField>
+
+<ResponseField name="totalPages" type="integer" required>
+  Total number of pages available for the query.
+</ResponseField>
+
+<ResponseField name="totalRecords" type="integer" required>
+  Total number of records matching the query across all pages.
+</ResponseField>
+
+<ResponseField name="dataRecord" type="DataRecord" required>
+  Container for the field definitions and row data.
+</ResponseField>
+
+## DataRecord
+
+The `DataRecord` object contains the structure definition and actual data rows.
+
+### Fields
+
+<ResponseField name="fields" type="Field[]" required>
+  Array of field definitions describing the structure of the data.
+</ResponseField>
+
+<ResponseField name="rows" type="object[]" required>
+  Array of data rows, where each row is a dictionary with field names as keys.
+</ResponseField>
+
+## Field
+
+The `Field` object defines the metadata for each column in the grid.
+
+### Properties
+
+<ResponseField name="id" type="integer" required>
+  Unique identifier for the field.
+</ResponseField>
+
+<ResponseField name="label" type="string" required>
+  Display label for the field (human-readable name).
+</ResponseField>
+
+<ResponseField name="name" type="string" required>
+  Technical name of the field (used as key in row data).
+</ResponseField>
+
+<ResponseField name="order" type="integer" required>
+  Display order of the field in the grid.
+</ResponseField>
+
+<ResponseField name="type" type="string" required>
+  Data type of the field (e.g., "string", "number", "date").
+</ResponseField>
+
+<ResponseField name="visible" type="boolean" default="false">
+  Whether the field should be visible in the UI.
+</ResponseField>
+
+<ResponseField name="width" type="integer" default="0">
+  Suggested width for displaying the field in pixels.
+</ResponseField>
+
+### Example Response
+
+```json
+{
+  "currentPage": 1,
+  "gridName": "Work Orders",
+  "gridId": 12345,
+  "totalRecordsReturned": 10,
+  "totalPages": 5,
+  "totalRecords": 50,
+  "dataRecord": {
+    "fields": [
+      {
+        "id": 1,
+        "label": "Order Number",
+        "name": "orderNumber",
+        "order": 1,
+        "type": "string",
+        "visible": true,
+        "width": 150
+      },
+      {
+        "id": 2,
+        "label": "Description",
+        "name": "description",
+        "order": 2,
+        "type": "string",
+        "visible": true,
+        "width": 300
+      },
+      {
+        "id": 3,
+        "label": "Status",
+        "name": "status",
+        "order": 3,
+        "type": "string",
+        "visible": true,
+        "width": 100
+      },
+      {
+        "id": 4,
+        "label": "Created Date",
+        "name": "createdDate",
+        "order": 4,
+        "type": "date",
+        "visible": true,
+        "width": 120
+      },
+      {
+        "id": 5,
+        "label": "Priority",
+        "name": "priority",
+        "order": 5,
+        "type": "number",
+        "visible": true,
+        "width": 80
+      }
+    ],
+    "rows": [
+      {
+        "orderNumber": "WO-2026-001",
+        "description": "Repair main pump",
+        "status": "In Progress",
+        "createdDate": "2026-03-01T08:30:00Z",
+        "priority": 1
+      },
+      {
+        "orderNumber": "WO-2026-002",
+        "description": "Inspect cooling system",
+        "status": "Pending",
+        "createdDate": "2026-03-02T10:15:00Z",
+        "priority": 2
+      },
+      {
+        "orderNumber": "WO-2026-003",
+        "description": "Replace air filters",
+        "status": "Completed",
+        "createdDate": "2026-03-01T14:00:00Z",
+        "priority": 3
+      }
+    ]
+  }
+}
+```
+
+### Response Structure Notes
+
+- The `fields` array defines the schema for the data, including display properties
+- Each object in the `rows` array uses the field `name` values as keys
+- The `visible` and `width` properties help UI clients render the grid appropriately
+- Pagination information (`currentPage`, `totalPages`, `totalRecords`) enables client-side pagination controls

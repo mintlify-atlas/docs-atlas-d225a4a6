@@ -1,0 +1,176 @@
+---
+title: 'Invoice Vouchers Ecuador'
+openapi: 'GET /api/accounts-payable/invoice/vouchers/ecuador'
+---
+
+## Overview
+
+Retrieves a paginated list of invoice vouchers from Ecuador. This endpoint represents the grid view for Ecuador invoice vouchers in the accounts payable module.
+
+## Authentication
+
+This endpoint requires authentication. Include a valid bearer token in the Authorization header.
+
+## Query Parameters
+
+<ParamField query="TypeFilter" type="integer" required>
+  Filter type for date range:
+  - `1` - Previous day
+  - `2` - Previous month
+  - `3` - Current month
+  - `4` - Last year
+  - `5` - Full month by year (requires Month and Year parameters)
+  - `6` - Custom
+  - `7` - All records
+</ParamField>
+
+<ParamField query="Month" type="integer">
+  Specific month to search. Valid values: 1-12. Required when TypeFilter is 5.
+</ParamField>
+
+<ParamField query="Year" type="integer">
+  Specific year to search. Valid values from previous year onwards. Required when TypeFilter is 5.
+</ParamField>
+
+<ParamField query="Page" type="integer" default="1">
+  Page number, starting from 1.
+</ParamField>
+
+<ParamField query="PagSize" type="integer">
+  Number of records to retrieve per page.
+</ParamField>
+
+## Response Schema
+
+Returns a `ResultDataGridModel` object containing:
+
+<ResponseField name="currentPage" type="integer" required>
+  Current page number
+</ResponseField>
+
+<ResponseField name="gridName" type="string" required>
+  Name of the grid
+</ResponseField>
+
+<ResponseField name="gridId" type="integer" required>
+  Unique identifier for the grid
+</ResponseField>
+
+<ResponseField name="totalRecordsReturned" type="integer" required>
+  Number of records returned in current response
+</ResponseField>
+
+<ResponseField name="totalPages" type="integer" required>
+  Total number of pages available
+</ResponseField>
+
+<ResponseField name="totalRecords" type="integer" required>
+  Total number of records available
+</ResponseField>
+
+<ResponseField name="dataRecord" type="object" required>
+  Contains the actual grid data
+  
+  <Expandable title="dataRecord properties">
+    <ResponseField name="fields" type="array" required>
+      Array of field definitions
+      
+      <Expandable title="field properties">
+        <ResponseField name="id" type="integer" required>
+          Field identifier
+        </ResponseField>
+        
+        <ResponseField name="label" type="string" required>
+          Display label for the field
+        </ResponseField>
+        
+        <ResponseField name="name" type="string" required>
+          Field name
+        </ResponseField>
+        
+        <ResponseField name="order" type="integer" required>
+          Display order
+        </ResponseField>
+        
+        <ResponseField name="type" type="string" required>
+          Data type of the field
+        </ResponseField>
+        
+        <ResponseField name="visible" type="boolean">
+          Whether the field is visible
+        </ResponseField>
+        
+        <ResponseField name="width" type="integer">
+          Column width
+        </ResponseField>
+      </Expandable>
+    </ResponseField>
+    
+    <ResponseField name="rows" type="array" required>
+      Array of data rows. Each row is a dictionary with field names as keys.
+    </ResponseField>
+  </Expandable>
+</ResponseField>
+
+## Response Codes
+
+- `200` - Success
+- `401` - Unauthorized - Authentication token is missing or invalid
+- `500` - Internal Server Error
+
+## Caching
+
+This endpoint has response caching enabled with a duration of 900 seconds (15 minutes).
+
+## Example Request
+
+```bash
+curl -X GET "https://api.example.com/api/accounts-payable/invoice/vouchers/ecuador?TypeFilter=3&Page=1&PagSize=50" \
+  -H "Authorization: Bearer YOUR_TOKEN_HERE" \
+  -H "Content-Type: application/json"
+```
+
+## Example Response
+
+```json
+{
+  "currentPage": 1,
+  "gridName": "Invoice Vouchers Ecuador",
+  "gridId": 12345,
+  "totalRecordsReturned": 50,
+  "totalPages": 10,
+  "totalRecords": 487,
+  "dataRecord": {
+    "fields": [
+      {
+        "id": 1,
+        "label": "Voucher Number",
+        "name": "voucherNumber",
+        "order": 1,
+        "type": "string",
+        "visible": true,
+        "width": 150
+      },
+      {
+        "id": 2,
+        "label": "Date",
+        "name": "date",
+        "order": 2,
+        "type": "date",
+        "visible": true,
+        "width": 120
+      }
+    ],
+    "rows": [
+      {
+        "voucherNumber": "INV-2024-001",
+        "date": "2024-03-01"
+      },
+      {
+        "voucherNumber": "INV-2024-002",
+        "date": "2024-03-02"
+      }
+    ]
+  }
+}
+```

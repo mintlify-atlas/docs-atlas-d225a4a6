@@ -1,0 +1,668 @@
+---
+title: Authentication & Security
+description: Learn how HGT EAM WebServices secures API access with Basic Authentication and rate limiting
+---
+
+## Overview
+
+HGT EAM WebServices uses **HTTP Basic Authentication** to secure API access. All requests must include valid credentials that are validated against a configured list of authorized users. Additionally, the API enforces **rate limiting** (60 requests per minute per user) to prevent abuse and ensure fair resource allocation.
+
+<Warning>
+  Basic Authentication transmits credentials in Base64 encoding. **Always use HTTPS** in production to prevent credential interception.
+</Warning>
+
+## Authentication Flow
+
+```mermaid
+sequenceDiagram
+    participant Client
+    participant API
+    participant BasicAuth as Basic Auth Handler
+    participant Config as Configuration
+    participant RateLimiter
+    participant Controller
+    
+    Client->>API: GET /api/accounting/payable<br/>Authorization: Basic dXNlcjpwYXNz
+    API->>BasicAuth: Extract credentials
+    BasicAuth->>Config: Lookup username/password
+    
+    alt Valid Credentials
+        Config-->>BasicAuth: User found
+        BasicAuth->>BasicAuth: Create ClaimsPrincipal
+        BasicAuth-->>API: Authentication success
+        
+        API->>RateLimiter: Check rate limit
+        alt Within Limit (< 60 req/min)
+            RateLimiter-->>API: Allow request
+            API->>Controller: Execute request
+            Controller-->>Client: 200 OK + JSON data
+        else Rate Limit Exceeded
+            RateLimiter-->>Client: 429 Too Many Requests<br/>{"retryAfterSeconds": 30}
+        end
+    else Invalid Credentials
+        Config-->>BasicAuth: User not found
+        BasicAuth-->>Client: 401 Unauthorized<br/>WWW-Authenticate: Basic realm="EAM-Webservices"
+    end
+```
+
+## Basic Authentication Implementation
+
+### Configuration Setup
+
+Credentials are configured in `appsettings.json` (or environment variables for production):
+
+```json appsettings.json
+{
+  "EAMCredentials": [
+    {
+      "Username": "api_user_1",
+      "Password": "SecureP@ssw0rd!",
+      "Organization": "HGT"
+    },
+    {
+      "Username": "readonly_user",
+      "Password": "AnotherSecureP@ss",
+      "Organization": "HGT_READONLY"
+    }
+  ]
+}
+```
+
+<Warning>
+  **Never commit passwords to source control.** Use environment variables or secret management tools:
+  
+  ```bash
+  export EAMCredentials__0__Password="SecureP@ssw0rd!"
+  export EAMCredentials__1__Password="AnotherSecureP@ss"
+  ```
+</Warning>
+
+### Authentication Extension
+
+The authentication system is configured in `AuthorizationExtensions.cs:18-62`:
+
+```csharp AuthorizationExtensions.cs
+public static IServiceCollection AddBasicAuthorization(
+    this IServiceCollection services, 
+    IConfiguration configuration)
+{
+    // Load credentials from configuration
+    var allCredentials = configuration
+        .GetSection("EAMCredentials")
+        .Get<List<EAMCredentialsSettings>>();
+    
+    if (allCredentials?.Count == 0)
+        throw new InvalidOperationException("EAMCredentials section is empty");
+    
+    services.AddAuthentication(BasicDefaults.AuthenticationScheme)
+        .AddBasic(options =>
+        {
+            options.Realm = "EAM-Webservices";
+            options.Events = new BasicEvents
+            {
+                OnValidateCredentials = async context =>
+                {
+                    // Lookup user by username and password
+                    var userInfo = allCredentials?.FirstOrDefault(f => 
+                        f.Username == context.Username && 
+                        f.Password == context.Password);
+                    
+                    if (userInfo != null)
+                    {
+                        // Create claims for authenticated user
+                        var claims = new[]
+                        {
+                            new Claim(ClaimTypes.Name, userInfo.Username),
+                            new Claim("Organization", userInfo.Organization),
+                            new Claim("Password", userInfo.Password)
+                        };
+                        
+                        context.Principal = new ClaimsPrincipal(
+                            new ClaimsIdentity(claims, context.Scheme.Name));
+                        context.Success();
+                    }
+                    else
+                    {
+                        context.ValidationFailed();
+                    }
+                }
+            };
+        });
+    
+    return services;
+}
+```
+
+### User Claims
+
+After successful authentication, the system creates a `ClaimsPrincipal` with the following claims:
+
+<ParamField path="ClaimTypes.Name" type="string">
+  The username of the authenticated user (e.g., `api_user_1`)
+</ParamField>
+
+<ParamField path="Organization" type="string">
+  The EAM organization the user belongs to (e.g., `HGT`)
+</ParamField>
+
+<ParamField path="Password" type="string">
+  The user's password (stored in claims for passing to downstream EAM SOAP calls)
+</ParamField>
+
+<Note>
+  The password is stored in claims because the API acts as a proxy - it needs to pass credentials to the underlying EAM SOAP service on behalf of the user.
+</Note>
+
+### Making Authenticated Requests
+
+Clients must include the `Authorization` header with Base64-encoded credentials:
+
+<CodeGroup>
+```bash cURL
+curl -X GET "https://api.hgt-eam.com/api/accounting/payable?typeFilter=2&page=1" \
+  -H "Authorization: Basic YXBpX3VzZXJfMTpTZWN1cmVQQHNzdzByZCE=" \
+  -H "Accept: application/json"
+```
+
+```javascript JavaScript (Fetch)
+const username = 'api_user_1';
+const password = 'SecureP@ssw0rd!';
+const credentials = btoa(`${username}:${password}`);
+
+fetch('https://api.hgt-eam.com/api/accounting/payable?typeFilter=2&page=1', {
+  headers: {
+    'Authorization': `Basic ${credentials}`,
+    'Accept': 'application/json'
+  }
+})
+.then(response => response.json())
+.then(data => console.log(data));
+```
+
+```python Python (requests)
+import requests
+from requests.auth import HTTPBasicAuth
+
+url = 'https://api.hgt-eam.com/api/accounting/payable'
+params = {'typeFilter': 2, 'page': 1}
+
+response = requests.get(
+    url,
+    params=params,
+    auth=HTTPBasicAuth('api_user_1', 'SecureP@ssw0rd!'),
+    headers={'Accept': 'application/json'}
+)
+
+data = response.json()
+```
+
+```csharp C# (HttpClient)
+using System;
+using System.Net.Http;
+using System.Net.Http.Headers;
+using System.Text;
+using System.Threading.Tasks;
+
+var client = new HttpClient();
+var credentials = Convert.ToBase64String(
+    Encoding.ASCII.GetBytes("api_user_1:SecureP@ssw0rd!"));
+
+client.DefaultRequestHeaders.Authorization = 
+    new AuthenticationHeaderValue("Basic", credentials);
+
+var response = await client.GetAsync(
+    "https://api.hgt-eam.com/api/accounting/payable?typeFilter=2&page=1");
+
+var json = await response.Content.ReadAsStringAsync();
+```
+</CodeGroup>
+
+## Rate Limiting
+
+### Configuration
+
+The API enforces **60 requests per minute** per user, configured in `Startup.cs:109-168`:
+
+```csharp Startup.cs
+services.AddRateLimiter(options =>
+{
+    options.RejectionStatusCode = StatusCodes.Status429TooManyRequests;
+    
+    options.OnRejected = async (context, token) =>
+    {
+        context.HttpContext.Response.ContentType = "application/json";
+        
+        var retryAfter = context.Lease.TryGetMetadata(
+            MetadataName.RetryAfter, out var retryAfterValue)
+            ? (int)Math.Ceiling(retryAfterValue.TotalSeconds)
+            : (int?)null;
+        
+        if (retryAfter is not null)
+        {
+            context.HttpContext.Response.Headers.RetryAfter = 
+                retryAfter.Value.ToString();
+        }
+        
+        await context.HttpContext.Response.WriteAsync(
+            $@"{{""statusCode"":429,""message"":""Too many requests"",
+                ""retryAfterSeconds"":{(retryAfter ?? 0)}}}",
+            token);
+    };
+    
+    options.AddPolicy("api", httpContext =>
+    {
+        // Only apply to /api/* endpoints
+        if (!httpContext.Request.Path.StartsWithSegments("/api"))
+            return RateLimitPartition.GetNoLimiter("non-api");
+        
+        // Determine partition key (user or IP)
+        string key;
+        if (httpContext.User?.Identity?.IsAuthenticated == true)
+        {
+            key = $"user:{httpContext.User.Identity.Name}";
+        }
+        else
+        {
+            var ip = httpContext.Connection.RemoteIpAddress;
+            key = ip is null ? "ip:unknown" : $"ip:{ip}";
+        }
+        
+        // Fixed window: 60 requests per minute
+        return RateLimitPartition.GetFixedWindowLimiter(
+            partitionKey: key,
+            factory: _ => new FixedWindowRateLimiterOptions
+            {
+                PermitLimit = 60,
+                Window = TimeSpan.FromMinutes(1),
+                QueueLimit = 0,
+                QueueProcessingOrder = QueueProcessingOrder.OldestFirst,
+                AutoReplenishment = true
+            });
+    });
+});
+```
+
+### Rate Limit Behavior
+
+<AccordionGroup>
+  <Accordion title="Per-User Limits">
+    Each authenticated user gets **60 requests per minute** independently:
+    
+    - `api_user_1`: 60 req/min
+    - `readonly_user`: 60 req/min (separate quota)
+    - Unauthenticated requests: 60 req/min per IP address
+  </Accordion>
+  
+  <Accordion title="Fixed Window Algorithm">
+    The rate limiter uses a **fixed window** approach:
+    
+    - Window starts when first request arrives
+    - Resets after 1 minute
+    - No sliding window or token bucket
+    
+    **Example**:
+    - 12:00:00 - Request 1 (window starts)
+    - 12:00:30 - Request 60 (quota exhausted)
+    - 12:00:45 - Request 61 → **429 Too Many Requests**
+    - 12:01:00 - Window resets, quota replenished
+  </Accordion>
+  
+  <Accordion title="429 Response Format">
+    When rate limit is exceeded, the API returns:
+    
+    ```json
+    HTTP/1.1 429 Too Many Requests
+    Content-Type: application/json
+    Retry-After: 15
+    
+    {
+      "statusCode": 429,
+      "message": "Too many requests",
+      "retryAfterSeconds": 15
+    }
+    ```
+    
+    The `Retry-After` header indicates seconds until quota resets.
+  </Accordion>
+</AccordionGroup>
+
+### Handling Rate Limits in Client Code
+
+<CodeGroup>
+```javascript JavaScript (Exponential Backoff)
+async function fetchWithRetry(url, options, maxRetries = 3) {
+  for (let i = 0; i < maxRetries; i++) {
+    const response = await fetch(url, options);
+    
+    if (response.status !== 429) {
+      return response;
+    }
+    
+    // Parse retry-after header
+    const retryAfter = parseInt(response.headers.get('Retry-After') || '60');
+    console.log(`Rate limited. Retrying after ${retryAfter}s...`);
+    
+    await new Promise(resolve => setTimeout(resolve, retryAfter * 1000));
+  }
+  
+  throw new Error('Max retries exceeded');
+}
+
+// Usage
+const response = await fetchWithRetry(
+  'https://api.hgt-eam.com/api/accounting/payable',
+  { headers: { 'Authorization': `Basic ${credentials}` } }
+);
+```
+
+```python Python (with backoff)
+import requests
+import time
+from requests.auth import HTTPBasicAuth
+
+def fetch_with_retry(url, auth, max_retries=3):
+    for attempt in range(max_retries):
+        response = requests.get(url, auth=auth)
+        
+        if response.status_code != 429:
+            return response
+        
+        # Get retry-after from header or response body
+        retry_after = int(response.headers.get('Retry-After', 60))
+        print(f"Rate limited. Retrying after {retry_after}s...")
+        
+        time.sleep(retry_after)
+    
+    raise Exception('Max retries exceeded')
+
+# Usage
+response = fetch_with_retry(
+    'https://api.hgt-eam.com/api/accounting/payable',
+    HTTPBasicAuth('api_user_1', 'SecureP@ssw0rd!')
+)
+```
+</CodeGroup>
+
+## Security Best Practices
+
+<AccordionGroup>
+  <Accordion title="1. Always Use HTTPS">
+    Basic Authentication encodes credentials in Base64, which is **not encryption**. Without HTTPS, credentials are transmitted in plain text.
+    
+    **Configure HTTPS in production**:
+    
+    ```csharp Startup.cs:45
+    app.UseHttpsRedirection();
+    app.UseHsts(); // Enforce HTTPS for 1 year
+    ```
+    
+    **Check certificate configuration**:
+    
+    ```bash
+    # Test HTTPS endpoint
+    curl -v https://api.hgt-eam.com/api/health
+    
+    # Verify certificate validity
+    openssl s_client -connect api.hgt-eam.com:443 -servername api.hgt-eam.com
+    ```
+  </Accordion>
+  
+  <Accordion title="2. Use Environment Variables for Secrets">
+    **Never hardcode passwords** in `appsettings.json`. Use environment variables or secret managers:
+    
+    <Tabs>
+      <Tab title="Docker">
+        ```yaml docker-compose.yml
+        services:
+          api:
+            image: hgt-eam-webservices:latest
+            environment:
+              - EAMCredentials__0__Username=api_user_1
+              - EAMCredentials__0__Password=${API_USER_PASSWORD}
+              - EAMCredentials__0__Organization=HGT
+        ```
+        
+        ```bash .env
+        API_USER_PASSWORD=SecureP@ssw0rd!
+        ```
+      </Tab>
+      
+      <Tab title="Kubernetes">
+        ```yaml secret.yaml
+        apiVersion: v1
+        kind: Secret
+        metadata:
+          name: eam-credentials
+        type: Opaque
+        stringData:
+          password: SecureP@ssw0rd!
+        ```
+        
+        ```yaml deployment.yaml
+        env:
+          - name: EAMCredentials__0__Password
+            valueFrom:
+              secretKeyRef:
+                name: eam-credentials
+                key: password
+        ```
+      </Tab>
+      
+      <Tab title="Azure Key Vault">
+        ```csharp Program.cs
+        builder.Configuration.AddAzureKeyVault(
+            new Uri("https://my-vault.vault.azure.net/"),
+            new DefaultAzureCredential());
+        ```
+        
+        Store secrets as:
+        - `EAMCredentials--0--Password`
+        - `EAMCredentials--1--Password`
+      </Tab>
+    </Tabs>
+  </Accordion>
+  
+  <Accordion title="3. Rotate Credentials Regularly">
+    Implement a credential rotation policy:
+    
+    1. **Create new credentials** with a different username
+    2. **Add to configuration** alongside existing credentials
+    3. **Update client applications** to use new credentials
+    4. **Monitor usage** of old credentials
+    5. **Remove old credentials** after migration period
+    
+    **Example multi-credential setup**:
+    
+    ```json
+    {
+      "EAMCredentials": [
+        {
+          "Username": "api_user_v2",  // New credentials
+          "Password": "NewSecureP@ss!",
+          "Organization": "HGT"
+        },
+        {
+          "Username": "api_user_v1",  // Legacy, will be removed 2026-04-01
+          "Password": "OldP@ssw0rd",
+          "Organization": "HGT"
+        }
+      ]
+    }
+    ```
+  </Accordion>
+  
+  <Accordion title="4. Monitor Authentication Failures">
+    The API logs authentication events via Serilog:
+    
+    ```csharp Startup.cs:62-69
+    using (LogContext.PushProperty("CurrentUser", user))
+    {
+        Log.Information("Invoking endpoint {Method} {Path}", method, path);
+    }
+    ```
+    
+    **Monitor for suspicious patterns**:
+    
+    - Multiple 401 responses from same IP (brute force attempt)
+    - 429 responses (rate limit abuse)
+    - Successful auth followed by unusual request patterns
+    
+    **Example log query (Seq/Splunk)**:
+    
+    ```sql
+    StatusCode = 401 
+    | stats count by RemoteIpAddress 
+    | where count > 10
+    ```
+  </Accordion>
+  
+  <Accordion title="5. Implement IP Whitelisting (Optional)">
+    For high-security environments, restrict API access to known IP ranges:
+    
+    ```csharp Startup.cs (Add before authentication)
+    app.Use(async (context, next) =>
+    {
+        var allowedIPs = new[] { "10.0.0.0/8", "192.168.1.0/24" };
+        var remoteIP = context.Connection.RemoteIpAddress;
+        
+        if (!allowedIPs.Any(range => IsInRange(remoteIP, range)))
+        {
+            context.Response.StatusCode = 403;
+            await context.Response.WriteAsync("Access denied");
+            return;
+        }
+        
+        await next();
+    });
+    ```
+  </Accordion>
+</AccordionGroup>
+
+## Credential Flow to EAM Services
+
+The API acts as a **transparent proxy** - user credentials are passed through to the underlying EAM SOAP service:
+
+```mermaid
+sequenceDiagram
+    participant Client
+    participant API
+    participant Auth as Basic Auth
+    participant Query as Query Handler
+    participant EAM as EAM SOAP Service
+    
+    Client->>API: Authorization: Basic (user1:pass1)
+    API->>Auth: Validate credentials
+    Auth->>Auth: Store in ClaimsPrincipal
+    Auth-->>API: Authentication success
+    
+    API->>Query: GridDataOnlyGetQuery (with ClaimsPrincipal)
+    Query->>Query: Extract username/password from claims
+    Query->>EAM: SOAP request with user1:pass1
+    EAM->>EAM: Validate credentials in EAM system
+    
+    alt EAM Authentication Success
+        EAM-->>Query: Grid data
+        Query-->>API: ResultDataGridModel
+        API-->>Client: 200 OK
+    else EAM Authentication Failure
+        EAM-->>Query: FaultException (Invalid credentials)
+        Query-->>API: Exception
+        API-->>Client: 500 Internal Server Error
+    end
+```
+
+**Key Point**: The API does **not** validate EAM credentials - it only checks if the username/password exist in the `EAMCredentials` configuration. The actual EAM authentication happens when calling the SOAP service.
+
+## Troubleshooting
+
+<AccordionGroup>
+  <Accordion title="401 Unauthorized">
+    **Possible causes**:
+    
+    1. **Missing Authorization header**
+       ```bash
+       # Missing header
+       curl https://api.hgt-eam.com/api/accounting/payable
+       # Result: 401 Unauthorized
+       ```
+    
+    2. **Incorrect credentials**
+       ```bash
+       # Wrong password
+       curl -u api_user:WRONG_PASSWORD https://api.hgt-eam.com/api/accounting/payable
+       # Result: 401 Unauthorized
+       ```
+    
+    3. **Credentials not in configuration**
+       - Check `appsettings.json` or environment variables
+       - Restart application after configuration changes
+    
+    **Solution**:
+    ```bash
+    # Verify credentials
+    echo -n "api_user:SecureP@ssw0rd!" | base64
+    # YXBpX3VzZXI6U2VjdXJlUEBzc3cwcmQh
+    
+    curl -H "Authorization: Basic YXBpX3VzZXI6U2VjdXJlUEBzc3cwcmQh" \
+         https://api.hgt-eam.com/api/accounting/payable
+    ```
+  </Accordion>
+  
+  <Accordion title="429 Too Many Requests">
+    **Cause**: Exceeded 60 requests per minute quota.
+    
+    **Solutions**:
+    
+    1. **Implement retry logic** with exponential backoff (see code examples above)
+    2. **Reduce request frequency** by caching responses client-side
+    3. **Use pagination efficiently** - don't request all pages at once
+    4. **Contact administrator** if limit is insufficient for your use case
+    
+    **Check current usage**:
+    ```bash
+    # Monitor rate limit headers (if implemented)
+    curl -i https://api.hgt-eam.com/api/accounting/payable \
+         -H "Authorization: Basic ..." \
+         | grep -i "x-ratelimit"
+    ```
+  </Accordion>
+  
+  <Accordion title="500 Internal Server Error (EAM Auth Failure)">
+    If you receive 500 errors **after** successfully authenticating to the API:
+    
+    **Cause**: The EAM SOAP service rejected the credentials.
+    
+    **Check logs**:
+    ```bash
+    docker logs hgt-eam-webservices | grep FaultException
+    ```
+    
+    **Common scenarios**:
+    - EAM account is locked
+    - EAM password has expired
+    - Organization code is incorrect
+    - EAM user lacks permissions for the requested grid
+    
+    **Solution**: Verify EAM credentials by logging into EAM directly with the configured username/password.
+  </Accordion>
+</AccordionGroup>
+
+## Next Steps
+
+<CardGroup cols={2}>
+  <Card title="Quick Start" icon="rocket" href="/quickstart">
+    Make your first authenticated API request
+  </Card>
+  
+  <Card title="Architecture Overview" icon="building" href="/concepts/architecture">
+    Understand how authentication fits into the system
+  </Card>
+  
+  <Card title="API Reference" icon="book" href="/api/overview">
+    Explore available endpoints and parameters
+  </Card>
+  
+  <Card title="Setup Guide" icon="server" href="/guides/setup">
+    Configure authentication in production environments
+  </Card>
+</CardGroup>

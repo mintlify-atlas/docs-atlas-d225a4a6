@@ -1,0 +1,440 @@
+---
+title: Authentication
+description: Authenticating requests to the HGT EAM WebServices API
+---
+
+## Overview
+
+The HGT EAM WebServices API uses **HTTP Basic Authentication** to secure all endpoints. Every API request must include valid credentials in the `Authorization` header.
+
+<Warning>
+  All endpoints require authentication. Requests without valid credentials will receive a `401 Unauthorized` response.
+</Warning>
+
+## Authentication Scheme
+
+The API implements Basic Authentication using the following components:
+
+- **Realm**: `EAM-Webservices`
+- **Scheme**: `Basic`
+- **Encoding**: Base64
+
+## How Basic Authentication Works
+
+### 1. Prepare Credentials
+
+Combine your username and password with a colon separator:
+
+```
+username:password
+```
+
+### 2. Encode to Base64
+
+Encode the credentials string using Base64 encoding:
+
+```bash
+echo -n "username:password" | base64
+```
+
+Output:
+```
+dXNlcm5hbWU6cGFzc3dvcmQ=
+```
+
+<Note>
+  The `-n` flag prevents adding a newline character, which would corrupt the encoding.
+</Note>
+
+### 3. Add Authorization Header
+
+Include the encoded credentials in the `Authorization` header with the `Basic` prefix:
+
+```
+Authorization: Basic dXNlcm5hbWU6cGFzc3dvcmQ=
+```
+
+## Making Authenticated Requests
+
+### Using cURL
+
+#### Option 1: Let cURL Handle Encoding
+
+```bash
+curl -X GET "https://your-domain.com/api/provisions/contracts?TypeFilter=3&Page=1" \
+  -u "username:password" \
+  -H "Accept: application/json"
+```
+
+The `-u` flag automatically handles Base64 encoding.
+
+#### Option 2: Manual Authorization Header
+
+```bash
+curl -X GET "https://your-domain.com/api/provisions/contracts?TypeFilter=3&Page=1" \
+  -H "Authorization: Basic dXNlcm5hbWU6cGFzc3dvcmQ=" \
+  -H "Accept: application/json"
+```
+
+### Using JavaScript (Fetch API)
+
+```javascript
+const username = 'myuser';
+const password = 'mypassword';
+const credentials = btoa(`${username}:${password}`);
+
+fetch('https://your-domain.com/api/provisions/contracts?TypeFilter=3&Page=1', {
+  method: 'GET',
+  headers: {
+    'Authorization': `Basic ${credentials}`,
+    'Accept': 'application/json'
+  }
+})
+.then(response => {
+  if (!response.ok) {
+    throw new Error(`HTTP ${response.status}: ${response.statusText}`);
+  }
+  return response.json();
+})
+.then(data => console.log(data))
+.catch(error => console.error('Error:', error));
+```
+
+### Using Python (Requests)
+
+```python
+import requests
+from requests.auth import HTTPBasicAuth
+
+username = 'myuser'
+password = 'mypassword'
+url = 'https://your-domain.com/api/provisions/contracts'
+
+params = {
+    'TypeFilter': 3,
+    'Page': 1,
+    'PagSize': 50
+}
+
+response = requests.get(
+    url,
+    auth=HTTPBasicAuth(username, password),
+    params=params
+)
+
+if response.status_code == 200:
+    data = response.json()
+    print(f"Retrieved {data['totalRecords']} records")
+else:
+    print(f"Error {response.status_code}: {response.text}")
+```
+
+### Using C# (.NET)
+
+```csharp
+using System;
+using System.Net.Http;
+using System.Net.Http.Headers;
+using System.Text;
+using System.Threading.Tasks;
+
+class Program
+{
+    static async Task Main()
+    {
+        var username = "myuser";
+        var password = "mypassword";
+        var credentials = Convert.ToBase64String(
+            Encoding.ASCII.GetBytes($"{username}:{password}")
+        );
+
+        using var client = new HttpClient();
+        client.DefaultRequestHeaders.Authorization = 
+            new AuthenticationHeaderValue("Basic", credentials);
+
+        var url = "https://your-domain.com/api/provisions/contracts" +
+                  "?TypeFilter=3&Page=1&PagSize=50";
+
+        var response = await client.GetAsync(url);
+        
+        if (response.IsSuccessStatusCode)
+        {
+            var content = await response.Content.ReadAsStringAsync();
+            Console.WriteLine(content);
+        }
+        else
+        {
+            Console.WriteLine($"Error: {response.StatusCode}");
+        }
+    }
+}
+```
+
+### Using Postman
+
+1. Open your request in Postman
+2. Go to the **Authorization** tab
+3. Select **Basic Auth** from the Type dropdown
+4. Enter your **Username** and **Password**
+5. Postman will automatically encode and add the header
+
+## Credential Configuration
+
+Credentials are configured server-side in the `appsettings.json` file:
+
+```json
+{
+  "EAMCredentials": [
+    {
+      "Username": "api_user",
+      "Password": "secure_password",
+      "Organization": "HGT"
+    }
+  ]
+}
+```
+
+<Note>
+  Contact your system administrator to obtain valid API credentials.
+</Note>
+
+## Authentication Flow
+
+When you make a request, the server performs the following validation:
+
+```mermaid
+sequenceDiagram
+    participant Client
+    participant API
+    participant Auth
+    participant EAM
+    
+    Client->>API: Request with Authorization header
+    API->>Auth: Extract and decode credentials
+    Auth->>Auth: Validate against configured users
+    
+    alt Credentials Valid
+        Auth->>API: Authentication successful
+        API->>API: Create user claims (username, organization)
+        API->>EAM: Process request with user context
+        EAM->>API: Return data
+        API->>Client: 200 OK with data
+    else Credentials Invalid
+        Auth->>API: Authentication failed
+        API->>Client: 401 Unauthorized
+    end
+```
+
+## Handling Authentication Errors
+
+### 401 Unauthorized Response
+
+If authentication fails, you'll receive:
+
+```json
+{
+  "statusCode": 401,
+  "message": "Unauthorized.",
+  "correlationId": "a1b2c3d4-e5f6-7890-abcd-ef1234567890"
+}
+```
+
+### Common Causes
+
+<AccordionGroup>
+  <Accordion title="Missing Authorization Header">
+    **Problem**: No `Authorization` header in the request.
+    
+    **Solution**: Include the header in every request:
+    ```
+    Authorization: Basic <base64-credentials>
+    ```
+  </Accordion>
+
+  <Accordion title="Invalid Base64 Encoding">
+    **Problem**: Credentials not properly Base64 encoded.
+    
+    **Solution**: Ensure you encode `username:password` correctly:
+    ```bash
+    echo -n "username:password" | base64
+    ```
+    
+    The `-n` flag is critical to avoid newline characters.
+  </Accordion>
+
+  <Accordion title="Incorrect Username or Password">
+    **Problem**: Credentials don't match configured values.
+    
+    **Solution**: 
+    - Verify credentials with your administrator
+    - Check for typos in username or password
+    - Ensure no extra spaces in credentials
+  </Accordion>
+
+  <Accordion title="Wrong Format">
+    **Problem**: Using incorrect header format.
+    
+    **Incorrect**:
+    ```
+    Authorization: dXNlcm5hbWU6cGFzc3dvcmQ=
+    ```
+    
+    **Correct**:
+    ```
+    Authorization: Basic dXNlcm5hbWU6cGFzc3dvcmQ=
+    ```
+    
+    The `Basic` prefix is required.
+  </Accordion>
+</AccordionGroup>
+
+### Debugging Authentication Issues
+
+#### Verify Your Encoding
+
+```bash
+# Encode credentials
+CREDS=$(echo -n "myuser:mypass" | base64)
+echo "Encoded: $CREDS"
+
+# Decode to verify
+echo $CREDS | base64 -d
+echo ""
+# Should output: myuser:mypass
+```
+
+#### Test with cURL
+
+```bash
+# Test with explicit credentials
+curl -v -u "username:password" \
+  "https://your-domain.com/api/provisions/contracts?TypeFilter=7&Page=1"
+
+# Look for:
+# < HTTP/1.1 200 OK (success)
+# < HTTP/1.1 401 Unauthorized (failure)
+```
+
+#### Check Response Headers
+
+```bash
+curl -I -u "username:password" \
+  "https://your-domain.com/api/provisions/contracts?TypeFilter=7&Page=1"
+```
+
+Look for:
+- `HTTP/1.1 200 OK` - Authentication successful
+- `HTTP/1.1 401 Unauthorized` - Authentication failed
+- `WWW-Authenticate: Basic realm="EAM-Webservices"` - Server expects Basic Auth
+
+## Security Best Practices
+
+<Warning>
+  Always use HTTPS in production. Basic Authentication sends credentials with every request, so encryption is essential.
+</Warning>
+
+### Do's
+
+✅ **Always use HTTPS** - Credentials are Base64 encoded, not encrypted  
+✅ **Store credentials securely** - Use environment variables or secure vaults  
+✅ **Rotate credentials regularly** - Change passwords periodically  
+✅ **Use unique credentials** - Don't share credentials across services  
+✅ **Monitor failed attempts** - Track authentication failures  
+
+### Don'ts
+
+❌ **Don't commit credentials** - Never store passwords in source code  
+❌ **Don't use HTTP** - Always use HTTPS for API requests  
+❌ **Don't log credentials** - Exclude auth headers from logs  
+❌ **Don't share credentials** - Each user/service should have unique credentials  
+❌ **Don't hardcode credentials** - Use configuration or environment variables  
+
+### Environment Variables
+
+```bash
+# Set credentials as environment variables
+export API_USERNAME="myuser"
+export API_PASSWORD="mypassword"
+export API_BASE_URL="https://your-domain.com/api"
+
+# Use in scripts
+curl -u "$API_USERNAME:$API_PASSWORD" "$API_BASE_URL/provisions/contracts?TypeFilter=3&Page=1"
+```
+
+### .env File (for applications)
+
+```bash
+# .env
+API_USERNAME=myuser
+API_PASSWORD=mypassword
+API_BASE_URL=https://your-domain.com/api
+```
+
+```javascript
+// Load from .env
+require('dotenv').config();
+
+const credentials = btoa(
+  `${process.env.API_USERNAME}:${process.env.API_PASSWORD}`
+);
+```
+
+## Rate Limiting and Authentication
+
+Rate limits are applied **per authenticated user**:
+
+- Authenticated users: Limited by username (60 requests/minute)
+- Anonymous requests: Limited by IP address (60 requests/minute)
+
+<Tip>
+  Using authentication provides better rate limiting control and allows tracking usage by user.
+</Tip>
+
+## Testing Authentication
+
+Here's a quick test to verify your credentials:
+
+```bash
+#!/bin/bash
+
+# Configuration
+USERNAME="myuser"
+PASSWORD="mypassword"
+BASE_URL="https://your-domain.com/api"
+
+# Test authentication
+echo "Testing authentication..."
+RESPONSE=$(curl -s -w "\n%{http_code}" \
+  -u "$USERNAME:$PASSWORD" \
+  "$BASE_URL/provisions/contracts?TypeFilter=7&Page=1&PagSize=1")
+
+# Extract status code (last line)
+STATUS=$(echo "$RESPONSE" | tail -n1)
+
+# Check result
+if [ "$STATUS" -eq 200 ]; then
+  echo "✓ Authentication successful"
+  echo "Response preview:"
+  echo "$RESPONSE" | head -n -1 | jq '.gridName, .totalRecords'
+else
+  echo "✗ Authentication failed (HTTP $STATUS)"
+  echo "$RESPONSE" | head -n -1
+fi
+```
+
+## Next Steps
+
+<CardGroup cols={2}>
+  <Card title="API Overview" icon="book" href="/api/overview">
+    Learn about available endpoints and response formats
+  </Card>
+  <Card title="Provision Endpoints" icon="boxes" href="/api/provision/contracts">
+    Start making requests to provision endpoints
+  </Card>
+  <Card title="Response Models" icon="triangle-exclamation" href="/api/models/response">
+    Understand response structure and fields
+  </Card>
+  <Card title="Rate Limiting" icon="gauge" href="/guides/rate-limiting">
+    Understand rate limits and quotas
+  </Card>
+</CardGroup>

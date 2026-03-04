@@ -1,0 +1,678 @@
+---
+title: Configuration Reference
+description: Complete reference for all HGT EAM WebServices configuration options
+---
+
+This guide provides a comprehensive reference for all configuration options in HGT EAM WebServices.
+
+## Configuration File Structure
+
+The application uses `appsettings.json` as the primary configuration file. Environment-specific overrides can be placed in:
+
+- `appsettings.Development.json`
+- `appsettings.Stage.json`
+- `appsettings.Production.json`
+
+## Complete Configuration Template
+
+```json appsettings.json
+{
+  "Logging": {
+    "LogLevel": {
+      "Default": "Information",
+      "Microsoft.AspNetCore": "Warning"
+    }
+  },
+  "ConnectionStrings": {
+    "GridCache": "Data Source=gridcache.db"
+  },
+  "EAMBaseUrl": "https://your-eam-server/axis/services",
+  "EAMCredentials": [
+    {
+      "Username": "eam-user",
+      "Password": "eam-password",
+      "Organization": "ORG_CODE"
+    }
+  ],
+  "EAMGrids": [
+    {
+      "GridName": "WSJOBS",
+      "UserFunction": "WSJOBS",
+      "GridId": 123,
+      "DataSpyIds": {
+        "PreviousDay": 1001,
+        "PreviousMonth": 1002,
+        "CurrentMonth": 1003,
+        "LastYear": 1004,
+        "Custom": 1005,
+        "AllRecords": 1000
+      },
+      "NumberRecordsFirstReturned": 500,
+      "CursorPosition": 0,
+      "HGTGridType": 1,
+      "HGTGridName": 1,
+      "FilterField": "CreationDate"
+    }
+  ],
+  "EAMDefaultRecords": 100,
+  "EnableAuthScheme": false,
+  "ApiTitle": "HGT - Grid API",
+  "ApiDescription": "API REST para acceder a las grillas de EAM de HGT",
+  "Serilog": {
+    "Using": ["Serilog.Sinks.Console", "Serilog.Sinks.File"],
+    "MinimumLevel": {
+      "Default": "Information",
+      "Override": {
+        "Microsoft.AspNetCore": "Warning"
+      }
+    },
+    "WriteTo": [
+      {"Name": "Console"}
+    ]
+  },
+  "AllowedHosts": "*",
+  "GridCache": {
+    "Enabled": true,
+    "ExpirationMinutes": 60
+  }
+}
+```
+
+## Connection Strings
+
+### GridCache
+
+SQLite database connection string for the grid caching system.
+
+```json
+{
+  "ConnectionStrings": {
+    "GridCache": "Data Source=gridcache.db"
+  }
+}
+```
+
+**Parameters:**
+- `Data Source`: Path to the SQLite database file (relative or absolute)
+
+**Examples:**
+
+```json
+// Relative path
+"GridCache": "Data Source=gridcache.db"
+
+// Absolute path
+"GridCache": "Data Source=/var/lib/eam-api/gridcache.db"
+
+// In-memory database (not recommended for production)
+"GridCache": "Data Source=:memory:"
+```
+
+<Note>
+The application automatically adds a 30-second busy timeout to handle concurrent access during cold starts.
+</Note>
+
+## EAM Configuration
+
+### EAMBaseUrl
+
+The base URL for INFOR EAM SOAP Web Services.
+
+```json
+{
+  "EAMBaseUrl": "https://your-eam-server/axis/services"
+}
+```
+
+**Type:** `string`  
+**Required:** Yes  
+**Format:** Full URL including protocol
+
+**Examples:**
+```json
+"EAMBaseUrl": "https://eam.company.com/axis/services"
+"EAMBaseUrl": "https://eam-prod.internal.network/axis/services"
+```
+
+### EAMCredentials
+
+Array of INFOR EAM user credentials used for Basic Authentication.
+
+```json
+{
+  "EAMCredentials": [
+    {
+      "Username": "string",
+      "Password": "string",
+      "Organization": "string"
+    }
+  ]
+}
+```
+
+**Schema:**
+```csharp HGT.EAM.WebServices.Infrastructure/Architecture/Models/EAMCredentialsSettings.cs
+public sealed class EAMCredentialsSettings
+{
+    public string Username { get; set; } = string.Empty;
+    public string Password { get; set; } = string.Empty;
+    public string Organization { get; set; } = string.Empty;
+}
+```
+
+**Properties:**
+
+| Property | Type | Required | Description |
+|----------|------|----------|-------------|
+| `Username` | string | Yes | EAM username |
+| `Password` | string | Yes | EAM password |
+| `Organization` | string | Yes | EAM organization code |
+
+**Multiple Credentials Example:**
+
+```json
+{
+  "EAMCredentials": [
+    {
+      "Username": "readonly_user",
+      "Password": "secure_pass_1",
+      "Organization": "MAINTENANCE"
+    },
+    {
+      "Username": "admin_user",
+      "Password": "secure_pass_2",
+      "Organization": "ADMIN"
+    }
+  ]
+}
+```
+
+<Warning>
+**Security Note:** Store credentials securely. Consider using:
+- Azure Key Vault
+- AWS Secrets Manager
+- Environment variables
+- User Secrets (development only)
+
+Example using environment variables:
+```bash
+export EAMCredentials__0__Username="myuser"
+export EAMCredentials__0__Password="mypassword"
+export EAMCredentials__0__Organization="ORG"
+```
+</Warning>
+
+### EAMGrids
+
+Array defining the EAM grids exposed through the API.
+
+```json
+{
+  "EAMGrids": [
+    {
+      "GridName": "string",
+      "UserFunction": "string",
+      "GridId": 0,
+      "DataSpyIds": {
+        "PreviousDay": 0,
+        "PreviousMonth": 0,
+        "CurrentMonth": 0,
+        "LastYear": 0,
+        "Custom": 0,
+        "AllRecords": 0
+      },
+      "NumberRecordsFirstReturned": 0,
+      "CursorPosition": 0,
+      "HGTGridType": 0,
+      "HGTGridName": 0,
+      "FilterField": "string"
+    }
+  ]
+}
+```
+
+**Schema:**
+```csharp HGT.EAM.WebServices.Infrastructure/Architecture/Models/EAMGridSettings.cs
+public class EAMGridSettings
+{
+    public string GridName { get; set; } = string.Empty;
+    public string UserFunction { get; set; } = string.Empty;
+    public int GridId { get; set; }
+    public DataSpyIds DataSpyIds { get; set; } = new DataSpyIds();
+    public int NumberRecordsFirstReturned { get; set; }
+    public int CursorPosition { get; set; }
+    public HGTGridTypeEnum HGTGridType { get; set; }
+    public HGTGridEnum HGTGridName { get; set; }
+    public string FilterField { get; set; } = string.Empty;
+}
+
+public class DataSpyIds
+{
+    public int PreviousDay { get; set; }
+    public int PreviousMonth { get; set; }
+    public int CurrentMonth { get; set; }
+    public int LastYear { get; set; }
+    public int Custom { get; set; }
+    public int AllRecords { get; set; }
+}
+```
+
+**Grid Properties:**
+
+| Property | Type | Required | Description |
+|----------|------|----------|-------------|
+| `GridName` | string | Yes | EAM grid identifier (e.g., "WSJOBS") |
+| `UserFunction` | string | Yes | EAM user function code |
+| `GridId` | int | Yes | Numeric grid identifier from INFOR EAM |
+| `DataSpyIds` | object | Yes | DataSpy IDs for time-based filters |
+| `NumberRecordsFirstReturned` | int | Yes | Initial batch size for fetching records |
+| `CursorPosition` | int | Yes | Starting cursor position (usually 0) |
+| `HGTGridType` | int | Yes | Grid type enum value |
+| `HGTGridName` | int | Yes | Grid name enum value |
+| `FilterField` | string | No | Field name used for filtering |
+
+**DataSpyIds Properties:**
+
+| Property | Type | Description |
+|----------|------|-------------|
+| `PreviousDay` | int | DataSpy ID for previous day filter |
+| `PreviousMonth` | int | DataSpy ID for previous month filter |
+| `CurrentMonth` | int | DataSpy ID for current month filter |
+| `LastYear` | int | DataSpy ID for last year filter |
+| `Custom` | int | DataSpy ID for custom date range |
+| `AllRecords` | int | DataSpy ID for all records |
+
+**Complete Example:**
+
+```json
+{
+  "EAMGrids": [
+    {
+      "GridName": "WSJOBS",
+      "UserFunction": "WSJOBS",
+      "GridId": 1234,
+      "DataSpyIds": {
+        "PreviousDay": 5001,
+        "PreviousMonth": 5002,
+        "CurrentMonth": 5003,
+        "LastYear": 5004,
+        "Custom": 5005,
+        "AllRecords": 5000
+      },
+      "NumberRecordsFirstReturned": 1000,
+      "CursorPosition": 0,
+      "HGTGridType": 1,
+      "HGTGridName": 1,
+      "FilterField": "CreationDate"
+    },
+    {
+      "GridName": "WSWORKORDERS",
+      "UserFunction": "SSQMWO",
+      "GridId": 5678,
+      "DataSpyIds": {
+        "PreviousDay": 6001,
+        "PreviousMonth": 6002,
+        "CurrentMonth": 6003,
+        "LastYear": 6004,
+        "Custom": 6005,
+        "AllRecords": 6000
+      },
+      "NumberRecordsFirstReturned": 500,
+      "CursorPosition": 0,
+      "HGTGridType": 2,
+      "HGTGridName": 2,
+      "FilterField": "Status"
+    }
+  ]
+}
+```
+
+### EAMDefaultRecords
+
+Default number of records to return per page when not specified in the request.
+
+```json
+{
+  "EAMDefaultRecords": 100
+}
+```
+
+**Type:** `int`  
+**Default:** 100  
+**Range:** 1 - 10000  
+
+## Grid Cache Configuration
+
+Controls the SQLite-based grid caching system.
+
+```json
+{
+  "GridCache": {
+    "Enabled": true,
+    "ExpirationMinutes": 60
+  }
+}
+```
+
+**Schema:**
+```csharp HGT.EAM.WebServices.Infrastructure/Architecture/GridCache/GridCacheOptions.cs
+public class GridCacheOptions
+{
+    public const string SectionName = "GridCache";
+    
+    public bool Enabled { get; set; } = true;
+    public int ExpirationMinutes { get; set; } = 60;
+}
+```
+
+**Properties:**
+
+| Property | Type | Default | Description |
+|----------|------|---------|-------------|
+| `Enabled` | bool | true | Enable/disable grid caching |
+| `ExpirationMinutes` | int | 60 | Cache expiration time in minutes (0 = never expire) |
+
+**Examples:**
+
+```json
+// Cache enabled with 2-hour expiration
+{
+  "GridCache": {
+    "Enabled": true,
+    "ExpirationMinutes": 120
+  }
+}
+
+// Cache disabled (always fetch from EAM)
+{
+  "GridCache": {
+    "Enabled": false,
+    "ExpirationMinutes": 0
+  }
+}
+
+// Cache never expires
+{
+  "GridCache": {
+    "Enabled": true,
+    "ExpirationMinutes": 0
+  }
+}
+```
+
+<Note>
+**Performance Impact:**
+- **Enabled**: Fast responses for cached data, reduced EAM load
+- **Disabled**: Always fresh data, increased EAM load
+- **Long expiration**: Better performance, potentially stale data
+- **Short expiration**: Fresher data, more frequent EAM calls
+</Note>
+
+## Logging Configuration (Serilog)
+
+The application uses Serilog for structured logging.
+
+### Basic Configuration
+
+```json
+{
+  "Serilog": {
+    "Using": ["Serilog.Sinks.Console", "Serilog.Sinks.File"],
+    "MinimumLevel": {
+      "Default": "Information",
+      "Override": {
+        "Microsoft.AspNetCore": "Warning",
+        "Microsoft.Hosting.Lifetime": "Warning",
+        "Microsoft.EntityFrameworkCore": "Warning"
+      }
+    },
+    "WriteTo": [
+      {"Name": "Console"}
+    ],
+    "Properties": {
+      "Application": "HGT.EAM.WebServices"
+    }
+  }
+}
+```
+
+### Log Levels
+
+| Level | Description | Use Case |
+|-------|-------------|----------|
+| `Verbose` | Most detailed | Debugging only |
+| `Debug` | Detailed diagnostic | Development |
+| `Information` | General flow | Production (default) |
+| `Warning` | Abnormal/unexpected | Production |
+| `Error` | Errors/exceptions | Always log |
+| `Fatal` | Critical failures | Always log |
+
+### Filtering API Logs
+
+The application includes a filter to only log API requests:
+
+```json
+{
+  "Serilog": {
+    "Filter": [
+      {
+        "Name": "ByIncludingOnly",
+        "Args": {
+          "expression": "Contains(RequestPath, '/api') or @Level = 'Error'"
+        }
+      }
+    ]
+  }
+}
+```
+
+This configuration:
+- Logs all requests to `/api/*` endpoints
+- Always logs errors regardless of path
+- Ignores requests to `/scalar`, `/openapi`, etc.
+
+### Console Sink
+
+```json
+{
+  "WriteTo": [
+    {"Name": "Console"}
+  ]
+}
+```
+
+### File Sink
+
+```json
+{
+  "WriteTo": [
+    {
+      "Name": "File",
+      "Args": {
+        "path": "logs/eam-api-.txt",
+        "rollingInterval": "Day",
+        "retainedFileCountLimit": 30,
+        "outputTemplate": "{Timestamp:yyyy-MM-dd HH:mm:ss.fff zzz} [{Level:u3}] {Message:lj}{NewLine}{Exception}"
+      }
+    }
+  ]
+}
+```
+
+### SQL Server Sink
+
+```json
+{
+  "Using": ["Serilog.Sinks.MSSqlServer"],
+  "WriteTo": [
+    {
+      "Name": "MSSqlServer",
+      "Args": {
+        "connectionString": "LogDatabase",
+        "tableName": "Logs",
+        "autoCreateSqlTable": true,
+        "restrictedToMinimumLevel": "Information"
+      }
+    }
+  ]
+}
+```
+
+### Enrichment
+
+The application automatically enriches logs with:
+
+```csharp HGT.EAM.WebServices/Setup/Program.cs
+builder.Host.UseSerilog((context, configuration) =>
+    configuration
+        .ReadFrom.Configuration(context.Configuration)
+        .Enrich.FromLogContext()
+);
+```
+
+Logged properties include:
+- `RequestPath`: Request URL path
+- `CurrentUser`: Authenticated username or "Anonymous"
+- `QueryString`: Query parameters
+- `Method`: HTTP method
+- `StatusCode`: Response status code
+- `Elapsed`: Request duration
+
+## API Documentation Configuration
+
+### ApiTitle & ApiDescription
+
+Configures the OpenAPI/Scalar documentation metadata.
+
+```json
+{
+  "ApiTitle": "HGT - Grid API",
+  "ApiDescription": "API REST para acceder a las grillas de EAM de HGT. Internamente consume los servicios SOAP de EAM."
+}
+```
+
+### EnableAuthScheme
+
+Controls whether to show the authentication scheme in the OpenAPI documentation.
+
+```json
+{
+  "EnableAuthScheme": false
+}
+```
+
+**Values:**
+- `false` (default): Basic OpenAPI documentation without auth UI
+- `true`: Shows Basic Auth input fields in Scalar UI
+
+## ASP.NET Core Configuration
+
+### AllowedHosts
+
+Specifies which hosts are allowed to access the application.
+
+```json
+{
+  "AllowedHosts": "*"
+}
+```
+
+**Examples:**
+```json
+// Allow all hosts (development)
+"AllowedHosts": "*"
+
+// Specific domains only (production)
+"AllowedHosts": "eam-api.company.com;api.company.com"
+```
+
+### Logging (ASP.NET Core)
+
+Standard ASP.NET Core logging configuration (used alongside Serilog).
+
+```json
+{
+  "Logging": {
+    "LogLevel": {
+      "Default": "Information",
+      "Microsoft.AspNetCore": "Warning"
+    }
+  }
+}
+```
+
+## Rate Limiting Configuration
+
+Rate limiting is configured in code but can be customized:
+
+```csharp HGT.EAM.WebServices/Setup/Startup.cs
+services.AddRateLimiter(options =>
+{
+    options.RejectionStatusCode = StatusCodes.Status429TooManyRequests;
+    
+    options.AddPolicy("api", httpContext =>
+    {
+        // 60 requests per minute per user/IP
+        return RateLimitPartition.GetFixedWindowLimiter(
+            partitionKey: key,
+            factory: _ => new FixedWindowRateLimiterOptions
+            {
+                PermitLimit = 60,
+                Window = TimeSpan.FromMinutes(1),
+                QueueLimit = 0,
+                AutoReplenishment = true
+            });
+    });
+});
+```
+
+See the [Rate Limiting Guide](/guides/rate-limiting) for detailed information.
+
+## Environment Variables
+
+All configuration can be overridden using environment variables:
+
+```bash
+# Format: Section__Property or Section__Index__Property
+export EAMBaseUrl="https://eam-prod.company.com/axis/services"
+export EAMCredentials__0__Username="produser"
+export EAMCredentials__0__Password="prodpass"
+export GridCache__ExpirationMinutes="120"
+export Serilog__MinimumLevel__Default="Warning"
+```
+
+## Configuration Validation
+
+The application validates configuration at startup:
+
+```csharp HGT.EAM.WebServices/Setup/ServiceCollectionExtensions.cs
+public static IServiceCollection AddApplicationServices(
+    this IServiceCollection services, IConfiguration configuration)
+{
+    var gridSettings = configuration.GetSection("EAMGrids");
+    
+    if (!gridSettings.Exists())
+        throw new InvalidOperationException(
+            "EAMGrids configuration section is missing.");
+    
+    var allGrids = configuration.GetSection("EAMGrids")
+        .Get<List<EAMGridSettings>>();
+    
+    if (allGrids == null || allGrids.Count == 0)
+        throw new InvalidOperationException(
+            "EAMGrids configuration section is missing or empty.");
+    
+    // ... rest of configuration
+}
+```
+
+## Next Steps
+
+<CardGroup cols={2}>
+  <Card title="Setup Guide" icon="rocket" href="/guides/setup">
+    Complete setup and installation guide
+  </Card>
+  <Card title="Rate Limiting" icon="gauge" href="/guides/rate-limiting">
+    Understanding rate limiting
+  </Card>
+</CardGroup>

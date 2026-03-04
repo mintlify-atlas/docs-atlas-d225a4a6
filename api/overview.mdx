@@ -1,0 +1,314 @@
+---
+title: API Overview
+description: Getting started with the HGT EAM WebServices API
+---
+
+## Introduction
+
+The HGT EAM WebServices API is a RESTful gateway that provides simplified and optimized access to INFOR EAM (Enterprise Asset Management) grid data. The API implements an intelligent SQLite-based caching system to ensure fast and reliable responses.
+
+## Base URL
+
+All API requests should be made to:
+
+```
+https://your-domain.com/api
+```
+
+<Note>
+  Replace `your-domain.com` with your actual API server domain.
+</Note>
+
+## Endpoint Categories
+
+The API organizes endpoints into four main categories:
+
+### Provision (Abastecimiento)
+
+Procurement and supply chain data from EAM.
+
+- `GET /api/provisions/contracts` - General contract data
+- `GET /api/provisions/purchase/order/audit` - Purchase order audit
+- `GET /api/provisions/view/purchase/order` - Finance view of purchase orders (OC)
+- `GET /api/provisions/view/purchase/request` - Finance view of purchase requests (SC)
+
+### Accounting (Contabilidad)
+
+Accounting and financial transaction data.
+
+- `GET /api/accounting/transactions` - Transaction grid data
+- `GET /api/accounting/kardex` - Kardex inventory report
+
+### Accounts Payable (Cuentas por Pagar)
+
+Accounts payable and invoice data.
+
+- `GET /api/accounts-payable/invoice/vouchers/ecuador` - Invoice vouchers for Ecuador
+- `GET /api/accounts-payable/billing/finance/view` - Finance view of billing
+- `GET /api/accounts-payable/billing/finance/order-purchase` - Finance view of purchase orders
+
+### Management Control (Control de Gestión)
+
+Management control and cost analysis data.
+
+- `GET /api/management-control/provisions` - Provisions grid data
+- `GET /api/management-control/maintenance/costs` - Maintenance cost information
+
+## Request Parameters
+
+All grid endpoints accept the following query parameters:
+
+### TypeFilter
+
+Defines the time period filter for data retrieval.
+
+<ParamField query="TypeFilter" type="integer" required>
+  Filter type for date range:
+  - `1` - PreviousDay: Previous day's data
+  - `2` - PreviousMonth: Previous month's data
+  - `3` - CurrentMonth: Current month's data
+  - `4` - LastYear: Last year's data
+  - `5` - FullMonthByYear: Specific month and year
+  - `6` - Custom: Custom date range
+  - `7` - AllRecords: All available records
+</ParamField>
+
+### Month
+
+<ParamField query="Month" type="integer">
+  Specific month to query (1-12). Required when `TypeFilter=5`.
+</ParamField>
+
+### Year
+
+<ParamField query="Year" type="integer">
+  Specific year to query. Required when `TypeFilter=5`. Valid values from previous year onwards.
+</ParamField>
+
+### Page
+
+<ParamField query="Page" type="integer" default="1">
+  Page number for pagination. Starts at 1.
+</ParamField>
+
+### PagSize
+
+<ParamField query="PagSize" type="integer">
+  Number of records to return per page. If not specified, uses the default configured page size.
+</ParamField>
+
+## Response Format
+
+All successful grid responses return a standardized JSON structure:
+
+```json
+{
+  "currentPage": 1,
+  "gridName": "Vista finanzas OC",
+  "gridId": 12345,
+  "totalRecordsReturned": 50,
+  "totalPages": 10,
+  "totalRecords": 500,
+  "dataRecord": {
+    "fields": [
+      {
+        "id": 1,
+        "label": "Order Number",
+        "name": "orderNumber",
+        "order": 1,
+        "type": "string",
+        "visible": true,
+        "width": 150
+      }
+    ],
+    "rows": [
+      {
+        "orderNumber": "PO-2026-001",
+        "amount": 15000.50,
+        "status": "Approved"
+      }
+    ]
+  }
+}
+```
+
+### Response Fields
+
+- **currentPage** - Current page number in the result set
+- **gridName** - Human-readable name of the grid
+- **gridId** - Unique identifier for the grid configuration
+- **totalRecordsReturned** - Number of records in current page
+- **totalPages** - Total number of pages available
+- **totalRecords** - Total number of records matching the query
+- **dataRecord.fields** - Array of field metadata describing the columns
+- **dataRecord.rows** - Array of data rows with actual values
+
+## Pagination
+
+The API uses offset-based pagination:
+
+1. Use the `Page` parameter to specify which page to retrieve (starting at 1)
+2. Use the `PagSize` parameter to control the number of records per page
+3. The response includes `totalPages` and `totalRecords` to help with pagination UI
+
+### Example: Paginated Request
+
+```bash
+curl -X GET "https://your-domain.com/api/provisions/contracts?TypeFilter=3&Page=2&PagSize=25" \
+  -H "Authorization: Basic dXNlcm5hbWU6cGFzc3dvcmQ="
+```
+
+## Caching System
+
+The API implements an intelligent SQLite-based caching system:
+
+- **First Request**: Data is fetched from INFOR EAM SOAP services and cached
+- **Subsequent Requests**: Data is served from the cache for faster response times
+- **Cache Duration**: 15 minutes (900 seconds) response cache on endpoints
+- **Persistence**: Cache persists between application restarts
+
+### Benefits
+
+- Ultra-fast responses for previously queried data
+- Reduced load on INFOR EAM servers
+- Efficient pagination without re-querying the service
+
+## Rate Limiting
+
+The API implements rate limiting to protect service availability:
+
+- **Limit**: 60 requests per minute
+- **Scope**: Per authenticated user or IP address (for anonymous requests)
+- **Response**: HTTP 429 (Too Many Requests) when limit exceeded
+
+### Rate Limit Headers
+
+When rate limited, the response includes:
+
+```json
+{
+  "statusCode": 429,
+  "message": "Too many requests",
+  "retryAfterSeconds": 45
+}
+```
+
+The `Retry-After` header indicates when you can retry the request.
+
+## Error Responses
+
+The API uses standard HTTP status codes and returns structured error responses:
+
+### Error Response Format
+
+```json
+{
+  "statusCode": 400,
+  "message": "Invalid request parameters",
+  "correlationId": "a1b2c3d4-e5f6-7890-abcd-ef1234567890"
+}
+```
+
+### Common Status Codes
+
+<ResponseField name="200" type="OK">
+  Request successful, data returned
+</ResponseField>
+
+<ResponseField name="400" type="Bad Request">
+  Invalid request parameters or malformed request
+</ResponseField>
+
+<ResponseField name="401" type="Unauthorized">
+  Authentication failed or missing credentials
+</ResponseField>
+
+<ResponseField name="404" type="Not Found">
+  Requested resource not found
+</ResponseField>
+
+<ResponseField name="408" type="Request Timeout">
+  Request to EAM service timed out
+</ResponseField>
+
+<ResponseField name="429" type="Too Many Requests">
+  Rate limit exceeded
+</ResponseField>
+
+<ResponseField name="500" type="Internal Server Error">
+  Unexpected server error occurred
+</ResponseField>
+
+<ResponseField name="501" type="Not Implemented">
+  Requested operation not supported
+</ResponseField>
+
+### Correlation IDs
+
+All error responses include a `correlationId` that can be used for troubleshooting and log correlation. Provide this ID when contacting support.
+
+## Interactive Documentation
+
+The API provides interactive documentation powered by Scalar:
+
+```
+https://your-domain.com/scalar/v1
+```
+
+The interactive documentation allows you to:
+
+- Browse all available endpoints
+- View detailed parameter descriptions
+- Test endpoints directly from the browser
+- See request and response examples
+- Authenticate and make live API calls
+
+## OpenAPI Specification
+
+The OpenAPI specification is available at:
+
+```
+https://your-domain.com/openapi/v1.json
+```
+
+You can use this specification with tools like Postman, Swagger UI, or any OpenAPI-compatible client.
+
+## Example: Complete Request Flow
+
+Here's a complete example of fetching purchase order data:
+
+```bash
+# 1. Encode credentials (username:password)
+echo -n "myuser:mypassword" | base64
+# Output: bXl1c2VyOm15cGFzc3dvcmQ=
+
+# 2. Make authenticated request
+curl -X GET "https://your-domain.com/api/provisions/view/purchase/order?TypeFilter=3&Page=1&PagSize=50" \
+  -H "Authorization: Basic bXl1c2VyOm15cGFzc3dvcmQ=" \
+  -H "Accept: application/json"
+
+# 3. Response includes paginated data
+# {
+#   "currentPage": 1,
+#   "totalPages": 5,
+#   "totalRecords": 234,
+#   ...
+# }
+```
+
+## Next Steps
+
+<CardGroup cols={2}>
+  <Card title="Authentication" icon="lock" href="/api/authentication">
+    Learn how to authenticate API requests
+  </Card>
+  <Card title="Provision Endpoints" icon="boxes" href="/api/provision/contracts">
+    Explore procurement and supply endpoints
+  </Card>
+  <Card title="Accounting Endpoints" icon="calculator" href="/api/accounting/transactions">
+    Access accounting and transaction data
+  </Card>
+  <Card title="Request Models" icon="triangle-exclamation" href="/api/models/request">
+    Understand request parameters and models
+  </Card>
+</CardGroup>

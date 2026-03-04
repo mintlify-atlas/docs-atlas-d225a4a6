@@ -1,0 +1,75 @@
+---
+title: 'Request Models'
+description: 'Request model documentation for HGT EAM WebServices API'
+---
+
+## GridRequestParams
+
+The `GridRequestParams` model is used for querying grid data with filtering and pagination capabilities.
+
+### Query Parameters
+
+<ParamField query="TypeFilter" type="integer" required>
+  Filter type for date-based queries. Valid values:
+  - `1` - PreviousDay: Previous day
+  - `2` - PreviousMonth: Previous month
+  - `3` - CurrentMonth: Current month
+  - `4` - LastYear: Previous year
+  - `5` - FullMonthByYear: Specific month and year (requires Month and Year parameters)
+  - `6` - Custom: Custom date range
+  - `7` - AllRecords: All records without date filtering
+</ParamField>
+
+<ParamField query="Month" type="integer">
+  Specific month to search. Valid range: 1-12. Required when TypeFilter is set to 5 (FullMonthByYear).
+</ParamField>
+
+<ParamField query="Year" type="integer">
+  Specific year to search. Valid values from previous year onwards. Required when TypeFilter is set to 5 (FullMonthByYear).
+</ParamField>
+
+<ParamField query="Page" type="integer" default="1">
+  Page number for pagination. Starts at 1.
+</ParamField>
+
+<ParamField query="PagSize" type="integer">
+  Number of records to retrieve per page. Controls the page size for pagination.
+</ParamField>
+
+### Example Request
+
+```bash
+GET /api/endpoint?TypeFilter=5&Month=3&Year=2026&Page=1&PagSize=10
+```
+
+### Example Query Parameters
+
+```json
+{
+  "TypeFilter": 5,
+  "Month": 3,
+  "Year": 2026,
+  "Page": 1,
+  "PagSize": 10
+}
+```
+
+### Usage Examples
+
+#### Get current month data
+
+```bash
+GET /api/endpoint?TypeFilter=3&Page=1&PagSize=20
+```
+
+#### Get specific month and year
+
+```bash
+GET /api/endpoint?TypeFilter=5&Month=12&Year=2025&Page=1&PagSize=50
+```
+
+#### Get previous day data
+
+```bash
+GET /api/endpoint?TypeFilter=1&Page=1&PagSize=100
+```

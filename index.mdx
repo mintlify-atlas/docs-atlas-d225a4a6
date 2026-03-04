@@ -1,97 +1,285 @@
 ---
-title: "Introduction"
-description: "Welcome to the new home for your documentation"
+title: HGT EAM WebServices Documentation
+description: RESTful API gateway for INFOR EAM with intelligent caching
+mode: custom
 ---
 
-## Setting up
+<div className="relative overflow-hidden bg-gradient-to-br from-[#004d99] via-[#0066cc] to-[#003d7a] dark:from-[#001f3f] dark:via-[#003d7a] dark:to-[#001529] py-20">
+  <div className="max-w-6xl mx-auto px-6">
+    <div className="grid grid-cols-1 lg:grid-cols-12 gap-8 items-center">
+      <div className="lg:col-span-7">
+        <h1 className="text-4xl sm:text-5xl lg:text-6xl font-bold text-white mb-6">
+          HGT EAM WebServices
+        </h1>
+        <p className="text-lg sm:text-xl text-blue-100 dark:text-blue-200 mb-8 max-w-2xl">
+          A high-performance RESTful API gateway for INFOR EAM (Enterprise Asset Management) with intelligent SQLite caching for fast, reliable access to your enterprise data.
+        </p>
+        <div className="flex flex-wrap gap-4">
+          <a 
+            href="/quickstart" 
+            className="inline-flex items-center px-6 py-3 bg-white text-[#0066cc] font-semibold rounded-lg hover:bg-blue-50 transition-colors shadow-lg"
+          >
+            Get Started
+            <svg className="ml-2 w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 5l7 7-7 7" />
+            </svg>
+          </a>
+          <a 
+            href="/api/overview" 
+            className="inline-flex items-center px-6 py-3 border-2 border-white/30 bg-white/10 text-white font-semibold rounded-lg hover:bg-white/20 transition-colors backdrop-blur-sm"
+          >
+            API Reference
+          </a>
+        </div>
+      </div>
+      <div className="lg:col-span-5 hidden lg:block">
+        <div className="bg-white/10 backdrop-blur-md rounded-2xl p-6 border border-white/20 shadow-2xl">
+          <div className="flex items-center gap-2 mb-4">
+            <div className="w-3 h-3 rounded-full bg-red-400"></div>
+            <div className="w-3 h-3 rounded-full bg-yellow-400"></div>
+            <div className="w-3 h-3 rounded-full bg-green-400"></div>
+          </div>
+          <pre className="text-sm text-blue-50 overflow-x-auto">
+            <code>{`curl -X GET \\
+  'https://api.example.com/api/provisions/contracts' \\
+  -H 'Authorization: Basic <token>' \\
+  -H 'Content-Type: application/json'`}</code>
+          </pre>
+        </div>
+      </div>
+    </div>
+  </div>
+</div>
 
-Get your documentation site up and running in minutes.
+<div className="mt-16 mb-16 max-w-5xl mx-auto px-6">
+  <h2 className="text-2xl sm:text-3xl font-bold text-gray-900 dark:text-white mb-4">
+    Quick start
+  </h2>
+  <p className="text-base text-gray-600 dark:text-gray-400 mb-8">
+    Get up and running with HGT EAM WebServices in minutes
+  </p>
+  
+  <Steps>
+    <Step title="Install dependencies">
+      Clone the repository and restore .NET dependencies:
+      
+      ```bash
+      git clone https://github.com/danger572cc/hgt-eam-web-services
+      cd hgt-eam-web-services
+      dotnet restore
+      ```
+    </Step>
+    
+    <Step title="Configure connection settings">
+      Set up your INFOR EAM credentials and database connection in your configuration file:
+      
+      ```json
+      {
+        "EAMCredentials": {
+          "Username": "your-username",
+          "Password": "your-password",
+          "Organization": "your-org"
+        }
+      }
+      ```
+    </Step>
+    
+    <Step title="Run the application">
+      Start the API server:
+      
+      ```bash
+      dotnet run --project HGT.EAM.WebServices/HGT.EAM.WebServices.csproj
+      ```
+      
+      The API will be available at `http://localhost:5000` with interactive documentation.
+    </Step>
+    
+    <Step title="Make your first request">
+      Authenticate and fetch data from any endpoint:
+      
+      ```bash
+      curl -X GET 'http://localhost:5000/api/accounting/transactions' \
+        -H 'Authorization: Basic <base64-encoded-credentials>' \
+        -H 'Content-Type: application/json'
+      ```
+      
+      <Accordion title="Example response">
+        ```json
+        {
+          "currentPage": 1,
+          "gridName": "Transacciones",
+          "gridId": 12345,
+          "totalRecordsReturned": 50,
+          "totalPages": 10,
+          "totalRecords": 500,
+          "dataRecord": {
+            "fields": [
+              {
+                "id": 1,
+                "label": "Transaction ID",
+                "name": "txn_id",
+                "type": "string"
+              }
+            ],
+            "rows": [
+              {
+                "txn_id": "TXN-001",
+                "amount": 1500.00
+              }
+            ]
+          }
+        }
+        ```
+      </Accordion>
+    </Step>
+  </Steps>
+</div>
 
-<Card
-  title="Start here"
-  icon="rocket"
-  href="/quickstart"
-  horizontal
->
-  Follow our three step quickstart guide.
-</Card>
+<div className="mt-16 mb-16 max-w-5xl mx-auto px-6">
+  <h2 className="text-2xl sm:text-3xl font-bold text-gray-900 dark:text-white mb-4">
+    Key features
+  </h2>
+  <p className="text-base text-gray-600 dark:text-gray-400 mb-8">
+    Everything you need to integrate with INFOR EAM
+  </p>
+  
+  <CardGroup cols={2}>
+    <Card title="INFOR EAM Integration" icon="link" href="/concepts/architecture">
+      Seamless integration with INFOR EAM SOAP services for real-time enterprise data access
+    </Card>
+    <Card title="Intelligent Caching" icon="database" href="/concepts/caching">
+      SQLite-based caching system for ultra-fast responses and reduced load on EAM servers
+    </Card>
+    <Card title="Clean Architecture" icon="layer-group" href="/concepts/architecture">
+      Built with CQRS pattern, mediator, and dependency injection for maintainable code
+    </Card>
+    <Card title="Rate Limiting" icon="shield-halved" href="/guides/rate-limiting">
+      Built-in protection with 60 requests per minute limit per user or IP address
+    </Card>
+    <Card title="OpenAPI Documentation" icon="book-open" href="/api/overview">
+      Interactive API documentation with Scalar for easy testing and exploration
+    </Card>
+    <Card title="Efficient Pagination" icon="list" href="/api/models/response">
+      Handle large datasets with built-in pagination support for all grid endpoints
+    </Card>
+  </CardGroup>
+</div>
 
-## Make it yours
+<div className="mt-16 mb-16 max-w-5xl mx-auto px-6">
+  <h2 className="text-2xl sm:text-3xl font-bold text-gray-900 dark:text-white mb-4">
+    Explore by category
+  </h2>
+  <p className="text-base text-gray-600 dark:text-gray-400 mb-8">
+    Access EAM data organized by business function
+  </p>
+  
+  <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+    <a href="/api/provision/contracts" className="group block rounded-2xl border border-gray-200 dark:border-[#27272a] hover:border-[#0066cc] dark:hover:border-[#0066cc] overflow-hidden no-underline transition-colors bg-white dark:bg-[#1a1d27]">
+      <div className="p-6">
+        <div className="flex items-center gap-3 mb-3">
+          <div className="w-10 h-10 rounded-lg bg-blue-100 dark:bg-blue-900/30 flex items-center justify-center">
+            <svg className="w-5 h-5 text-[#0066cc]" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z" />
+            </svg>
+          </div>
+          <h3 className="text-base font-semibold text-gray-900 dark:text-white">Provision</h3>
+        </div>
+        <p className="text-sm text-gray-600 dark:text-gray-400 mb-3">
+          Access contracts, purchase orders, and purchase request data
+        </p>
+        <div className="flex items-center text-sm font-medium text-[#0066cc] group-hover:text-[#004d99] transition-colors">
+          View endpoints
+          <svg className="ml-1 w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 5l7 7-7 7" />
+          </svg>
+        </div>
+      </div>
+    </a>
 
-Design a docs site that looks great and empowers your users.
+    <a href="/api/accounting/transactions" className="group block rounded-2xl border border-gray-200 dark:border-[#27272a] hover:border-[#0066cc] dark:hover:border-[#0066cc] overflow-hidden no-underline transition-colors bg-white dark:bg-[#1a1d27]">
+      <div className="p-6">
+        <div className="flex items-center gap-3 mb-3">
+          <div className="w-10 h-10 rounded-lg bg-green-100 dark:bg-green-900/30 flex items-center justify-center">
+            <svg className="w-5 h-5 text-green-600 dark:text-green-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 7h6m0 10v-3m-3 3h.01M9 17h.01M9 14h.01M12 14h.01M15 11h.01M12 11h.01M9 11h.01M7 21h10a2 2 0 002-2V5a2 2 0 00-2-2H7a2 2 0 00-2 2v14a2 2 0 002 2z" />
+            </svg>
+          </div>
+          <h3 className="text-base font-semibold text-gray-900 dark:text-white">Accounting</h3>
+        </div>
+        <p className="text-sm text-gray-600 dark:text-gray-400 mb-3">
+          Retrieve transaction records and kardex inventory reports
+        </p>
+        <div className="flex items-center text-sm font-medium text-[#0066cc] group-hover:text-[#004d99] transition-colors">
+          View endpoints
+          <svg className="ml-1 w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 5l7 7-7 7" />
+          </svg>
+        </div>
+      </div>
+    </a>
 
-<Columns cols={2}>
-  <Card
-    title="Edit locally"
-    icon="pen-to-square"
-    href="/development"
-  >
-    Edit your docs locally and preview them in real time.
-  </Card>
-  <Card
-    title="Customize your site"
-    icon="palette"
-    href="/essentials/settings"
-  >
-    Customize the design and colors of your site to match your brand.
-  </Card>
-    <Card
-    title="Set up navigation"
-    icon="map"
-    href="/essentials/navigation"
-  >
-    Organize your docs to help users find what they need and succeed with your product.
-  </Card>
-  <Card
-    title="API documentation"
-    icon="terminal"
-    href="/api-reference/introduction"
-  >
-    Auto-generate API documentation from OpenAPI specifications.
-  </Card>
-</Columns>
+    <a href="/api/accounts-payable/invoice-vouchers" className="group block rounded-2xl border border-gray-200 dark:border-[#27272a] hover:border-[#0066cc] dark:hover:border-[#0066cc] overflow-hidden no-underline transition-colors bg-white dark:bg-[#1a1d27]">
+      <div className="p-6">
+        <div className="flex items-center gap-3 mb-3">
+          <div className="w-10 h-10 rounded-lg bg-purple-100 dark:bg-purple-900/30 flex items-center justify-center">
+            <svg className="w-5 h-5 text-purple-600 dark:text-purple-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M17 9V7a2 2 0 00-2-2H5a2 2 0 00-2 2v6a2 2 0 002 2h2m2 4h10a2 2 0 002-2v-6a2 2 0 00-2-2H9a2 2 0 00-2 2v6a2 2 0 002 2zm7-5a2 2 0 11-4 0 2 2 0 014 0z" />
+            </svg>
+          </div>
+          <h3 className="text-base font-semibold text-gray-900 dark:text-white">Accounts Payable</h3>
+        </div>
+        <p className="text-sm text-gray-600 dark:text-gray-400 mb-3">
+          Access invoice vouchers and billing finance views
+        </p>
+        <div className="flex items-center text-sm font-medium text-[#0066cc] group-hover:text-[#004d99] transition-colors">
+          View endpoints
+          <svg className="ml-1 w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 5l7 7-7 7" />
+          </svg>
+        </div>
+      </div>
+    </a>
 
-## Create beautiful pages
+    <a href="/api/management-control/provisions" className="group block rounded-2xl border border-gray-200 dark:border-[#27272a] hover:border-[#0066cc] dark:hover:border-[#0066cc] overflow-hidden no-underline transition-colors bg-white dark:bg-[#1a1d27]">
+      <div className="p-6">
+        <div className="flex items-center gap-3 mb-3">
+          <div className="w-10 h-10 rounded-lg bg-orange-100 dark:bg-orange-900/30 flex items-center justify-center">
+            <svg className="w-5 h-5 text-orange-600 dark:text-orange-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 19v-6a2 2 0 00-2-2H5a2 2 0 00-2 2v6a2 2 0 002 2h2a2 2 0 002-2zm0 0V9a2 2 0 012-2h2a2 2 0 012 2v10m-6 0a2 2 0 002 2h2a2 2 0 002-2m0 0V5a2 2 0 012-2h2a2 2 0 012 2v14a2 2 0 01-2 2h-2a2 2 0 01-2-2z" />
+            </svg>
+          </div>
+          <h3 className="text-base font-semibold text-gray-900 dark:text-white">Management Control</h3>
+        </div>
+        <p className="text-sm text-gray-600 dark:text-gray-400 mb-3">
+          View provisions and maintenance cost reports
+        </p>
+        <div className="flex items-center text-sm font-medium text-[#0066cc] group-hover:text-[#004d99] transition-colors">
+          View endpoints
+          <svg className="ml-1 w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 5l7 7-7 7" />
+          </svg>
+        </div>
+      </div>
+    </a>
+  </div>
+</div>
 
-Everything you need to create world-class documentation.
-
-<Columns cols={2}>
-  <Card
-    title="Write with MDX"
-    icon="pen-fancy"
-    href="/essentials/markdown"
-  >
-    Use MDX to style your docs pages.
-  </Card>
-  <Card
-    title="Code samples"
-    icon="code"
-    href="/essentials/code"
-  >
-    Add sample code to demonstrate how to use your product.
-  </Card>
-  <Card
-    title="Images"
-    icon="image"
-    href="/essentials/images"
-  >
-    Display images and other media.
-  </Card>
-  <Card
-    title="Reusable snippets"
-    icon="recycle"
-    href="/essentials/reusable-snippets"
-  >
-    Write once and reuse across your docs.
-  </Card>
-</Columns>
-
-## Need inspiration?
-
-<Card
-  title="See complete examples"
-  icon="stars"
-  href="https://mintlify.com/customers"
->
-  Browse our showcase of exceptional documentation sites.
-</Card>
+<div className="mt-20 mb-16 max-w-5xl mx-auto px-6">
+  <div className="bg-gradient-to-r from-[#0066cc] to-[#004d99] dark:from-[#003d7a] dark:to-[#001f3f] rounded-2xl p-8 sm:p-12 text-center">
+    <h2 className="text-2xl sm:text-3xl font-bold text-white mb-4">
+      Ready to get started?
+    </h2>
+    <p className="text-lg text-blue-100 dark:text-blue-200 mb-8 max-w-2xl mx-auto">
+      Follow our quickstart guide to integrate with INFOR EAM in minutes.
+    </p>
+    <a 
+      href="/quickstart" 
+      className="inline-flex items-center px-6 py-3 bg-white text-[#0066cc] font-semibold rounded-lg hover:bg-blue-50 transition-colors shadow-lg"
+    >
+      View Quickstart Guide
+      <svg className="ml-2 w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 5l7 7-7 7" />
+      </svg>
+    </a>
+  </div>
+</div>

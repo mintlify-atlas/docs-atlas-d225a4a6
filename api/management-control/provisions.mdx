@@ -1,0 +1,205 @@
+---
+title: 'Get Provisions'
+api: 'GET /api/management-control/provisions'
+---
+
+Representa la grilla provisiones 2.
+
+## Authentication
+
+This endpoint requires authentication. Include a valid JWT token in the Authorization header:
+
+```
+Authorization: Bearer <your-token>
+```
+
+## Query Parameters
+
+<ParamField query="TypeFilter" type="integer" required>
+  Tipo de filtro:
+  - `1` - PreviousDay (día anterior)
+  - `2` - PreviousMonth (mes anterior)
+  - `3` - CurrentMonth (mes actual)
+  - `4` - LastYear (año anterior)
+  - `5` - FullMonthByYear (mes y año en concreto)
+  - `6` - Custom
+  - `7` - AllRecords
+</ParamField>
+
+<ParamField query="Month" type="integer">
+  Mes en concreto a buscar. Rango de valores válidos: 1-12.
+  
+  Requerido cuando `TypeFilter` es `5` (FullMonthByYear).
+</ParamField>
+
+<ParamField query="Year" type="integer">
+  Año en concreto. Valores válidos a partir del año anterior.
+  
+  Requerido cuando `TypeFilter` es `5` (FullMonthByYear).
+</ParamField>
+
+<ParamField query="Page" type="integer" default="1">
+  Número de página. Se inicia con 1.
+</ParamField>
+
+<ParamField query="PagSize" type="integer">
+  Número de registros a obtener por página.
+</ParamField>
+
+## Response
+
+<ResponseField name="currentPage" type="integer">
+  Página actual de los resultados.
+</ResponseField>
+
+<ResponseField name="gridName" type="string">
+  Nombre de la grilla.
+</ResponseField>
+
+<ResponseField name="gridId" type="long">
+  Identificador único de la grilla.
+</ResponseField>
+
+<ResponseField name="totalRecordsReturned" type="integer">
+  Número de registros devueltos en la página actual.
+</ResponseField>
+
+<ResponseField name="totalPages" type="integer">
+  Número total de páginas disponibles.
+</ResponseField>
+
+<ResponseField name="totalRecords" type="integer">
+  Número total de registros en la grilla.
+</ResponseField>
+
+<ResponseField name="dataRecord" type="object">
+  Contiene los datos de la grilla.
+  
+  <Expandable title="dataRecord properties">
+    <ResponseField name="fields" type="array">
+      Array de objetos Field que describen las columnas de la grilla.
+      
+      <Expandable title="Field properties">
+        <ResponseField name="id" type="integer">
+          Identificador del campo.
+        </ResponseField>
+        
+        <ResponseField name="label" type="string">
+          Etiqueta visible del campo.
+        </ResponseField>
+        
+        <ResponseField name="name" type="string">
+          Nombre técnico del campo.
+        </ResponseField>
+        
+        <ResponseField name="order" type="integer">
+          Orden de visualización del campo.
+        </ResponseField>
+        
+        <ResponseField name="type" type="string">
+          Tipo de dato del campo.
+        </ResponseField>
+        
+        <ResponseField name="visible" type="boolean">
+          Indica si el campo es visible.
+        </ResponseField>
+        
+        <ResponseField name="width" type="integer">
+          Ancho del campo en píxeles.
+        </ResponseField>
+      </Expandable>
+    </ResponseField>
+    
+    <ResponseField name="rows" type="array">
+      Array de objetos donde cada objeto representa una fila. Las claves corresponden a los nombres de los campos definidos en `fields`.
+    </ResponseField>
+  </Expandable>
+</ResponseField>
+
+<RequestExample>
+
+```bash cURL
+curl -X GET "https://api.example.com/api/management-control/provisions?TypeFilter=3&Page=1&PagSize=50" \
+  -H "Authorization: Bearer <your-token>"
+```
+
+```bash cURL (Specific Month/Year)
+curl -X GET "https://api.example.com/api/management-control/provisions?TypeFilter=5&Month=3&Year=2026&Page=1&PagSize=50" \
+  -H "Authorization: Bearer <your-token>"
+```
+
+</RequestExample>
+
+<ResponseExample>
+
+```json 200 OK
+{
+  "currentPage": 1,
+  "gridName": "Provisiones",
+  "gridId": 123456,
+  "totalRecordsReturned": 50,
+  "totalPages": 10,
+  "totalRecords": 487,
+  "dataRecord": {
+    "fields": [
+      {
+        "id": 1,
+        "label": "Código",
+        "name": "codigo",
+        "order": 1,
+        "type": "string",
+        "visible": true,
+        "width": 100
+      },
+      {
+        "id": 2,
+        "label": "Descripción",
+        "name": "descripcion",
+        "order": 2,
+        "type": "string",
+        "visible": true,
+        "width": 200
+      },
+      {
+        "id": 3,
+        "label": "Monto",
+        "name": "monto",
+        "order": 3,
+        "type": "decimal",
+        "visible": true,
+        "width": 120
+      }
+    ],
+    "rows": [
+      {
+        "codigo": "PROV-001",
+        "descripcion": "Provisión de garantía",
+        "monto": 15000.50
+      },
+      {
+        "codigo": "PROV-002",
+        "descripcion": "Provisión de mantenimiento",
+        "monto": 8500.00
+      }
+    ]
+  }
+}
+```
+
+```json 401 Unauthorized
+{
+  "message": "Authentication required"
+}
+```
+
+```json 500 Internal Server Error
+{
+  "message": "An error occurred while processing the request"
+}
+```
+
+</ResponseExample>
+
+## Caching
+
+This endpoint implements response caching with a duration of 900 seconds (15 minutes). Subsequent identical requests within this period will return cached data.

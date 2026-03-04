@@ -1,0 +1,233 @@
+---
+title: 'Billing Finance'
+openapi: 'GET /api/accounts-payable/billing/finance/view'
+---
+
+## Overview
+
+This section contains endpoints for billing finance data in the accounts payable module.
+
+## Billing Finance View
+
+### GET /api/accounts-payable/billing/finance/view
+
+Retrieves the billing finance view grid data. This endpoint provides a comprehensive view of billing finance information.
+
+#### Authentication
+
+This endpoint requires authentication. Include a valid bearer token in the Authorization header.
+
+#### Query Parameters
+
+<ParamField query="TypeFilter" type="integer" required>
+  Filter type for date range:
+  - `1` - Previous day
+  - `2` - Previous month
+  - `3` - Current month
+  - `4` - Last year
+  - `5` - Full month by year (requires Month and Year parameters)
+  - `6` - Custom
+  - `7` - All records
+</ParamField>
+
+<ParamField query="Month" type="integer">
+  Specific month to search. Valid values: 1-12. Required when TypeFilter is 5.
+</ParamField>
+
+<ParamField query="Year" type="integer">
+  Specific year to search. Valid values from previous year onwards. Required when TypeFilter is 5.
+</ParamField>
+
+<ParamField query="Page" type="integer" default="1">
+  Page number, starting from 1.
+</ParamField>
+
+<ParamField query="PagSize" type="integer">
+  Number of records to retrieve per page.
+</ParamField>
+
+#### Example Request
+
+```bash
+curl -X GET "https://api.example.com/api/accounts-payable/billing/finance/view?TypeFilter=3&Page=1&PagSize=50" \
+  -H "Authorization: Bearer YOUR_TOKEN_HERE" \
+  -H "Content-Type: application/json"
+```
+
+---
+
+## Billing Finance Purchase Orders
+
+### GET /api/accounts-payable/billing/finance/order-purchase
+
+Retrieves the billing finance view for purchase orders (órdenes de compra). This endpoint provides financial information related to purchase orders.
+
+#### Authentication
+
+This endpoint requires authentication. Include a valid bearer token in the Authorization header.
+
+#### Query Parameters
+
+<ParamField query="TypeFilter" type="integer" required>
+  Filter type for date range:
+  - `1` - Previous day
+  - `2` - Previous month
+  - `3` - Current month
+  - `4` - Last year
+  - `5` - Full month by year (requires Month and Year parameters)
+  - `6` - Custom
+  - `7` - All records
+</ParamField>
+
+<ParamField query="Month" type="integer">
+  Specific month to search. Valid values: 1-12. Required when TypeFilter is 5.
+</ParamField>
+
+<ParamField query="Year" type="integer">
+  Specific year to search. Valid values from previous year onwards. Required when TypeFilter is 5.
+</ParamField>
+
+<ParamField query="Page" type="integer" default="1">
+  Page number, starting from 1.
+</ParamField>
+
+<ParamField query="PagSize" type="integer">
+  Number of records to retrieve per page.
+</ParamField>
+
+#### Example Request
+
+```bash
+curl -X GET "https://api.example.com/api/accounts-payable/billing/finance/order-purchase?TypeFilter=3&Page=1&PagSize=50" \
+  -H "Authorization: Bearer YOUR_TOKEN_HERE" \
+  -H "Content-Type: application/json"
+```
+
+---
+
+## Common Response Schema
+
+Both endpoints return a `ResultDataGridModel` object with the following structure:
+
+<ResponseField name="currentPage" type="integer" required>
+  Current page number
+</ResponseField>
+
+<ResponseField name="gridName" type="string" required>
+  Name of the grid
+</ResponseField>
+
+<ResponseField name="gridId" type="integer" required>
+  Unique identifier for the grid
+</ResponseField>
+
+<ResponseField name="totalRecordsReturned" type="integer" required>
+  Number of records returned in current response
+</ResponseField>
+
+<ResponseField name="totalPages" type="integer" required>
+  Total number of pages available
+</ResponseField>
+
+<ResponseField name="totalRecords" type="integer" required>
+  Total number of records available
+</ResponseField>
+
+<ResponseField name="dataRecord" type="object" required>
+  Contains the actual grid data
+  
+  <Expandable title="dataRecord properties">
+    <ResponseField name="fields" type="array" required>
+      Array of field definitions
+      
+      <Expandable title="field properties">
+        <ResponseField name="id" type="integer" required>
+          Field identifier
+        </ResponseField>
+        
+        <ResponseField name="label" type="string" required>
+          Display label for the field
+        </ResponseField>
+        
+        <ResponseField name="name" type="string" required>
+          Field name
+        </ResponseField>
+        
+        <ResponseField name="order" type="integer" required>
+          Display order
+        </ResponseField>
+        
+        <ResponseField name="type" type="string" required>
+          Data type of the field
+        </ResponseField>
+        
+        <ResponseField name="visible" type="boolean">
+          Whether the field is visible
+        </ResponseField>
+        
+        <ResponseField name="width" type="integer">
+          Column width
+        </ResponseField>
+      </Expandable>
+    </ResponseField>
+    
+    <ResponseField name="rows" type="array" required>
+      Array of data rows. Each row is a dictionary with field names as keys.
+    </ResponseField>
+  </Expandable>
+</ResponseField>
+
+## Common Response Codes
+
+- `200` - Success
+- `401` - Unauthorized - Authentication token is missing or invalid
+- `500` - Internal Server Error
+
+## Caching
+
+Both endpoints have response caching enabled with a duration of 900 seconds (15 minutes).
+
+## Example Response
+
+```json
+{
+  "currentPage": 1,
+  "gridName": "Billing Finance View",
+  "gridId": 12346,
+  "totalRecordsReturned": 50,
+  "totalPages": 8,
+  "totalRecords": 392,
+  "dataRecord": {
+    "fields": [
+      {
+        "id": 1,
+        "label": "Order Number",
+        "name": "orderNumber",
+        "order": 1,
+        "type": "string",
+        "visible": true,
+        "width": 150
+      },
+      {
+        "id": 2,
+        "label": "Amount",
+        "name": "amount",
+        "order": 2,
+        "type": "decimal",
+        "visible": true,
+        "width": 120
+      }
+    ],
+    "rows": [
+      {
+        "orderNumber": "PO-2024-001",
+        "amount": 1250.50
+      },
+      {
+        "orderNumber": "PO-2024-002",
+        "amount": 3400.75
+      }
+    ]
+  }
+}
+```

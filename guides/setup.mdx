@@ -1,0 +1,390 @@
+---
+title: Setup Guide
+description: Complete setup guide for HGT EAM WebServices
+---
+
+This guide will walk you through setting up HGT EAM WebServices from initial installation to running in production.
+
+## Prerequisites
+
+Before starting, ensure you have the following:
+
+- **.NET 9.0 SDK** or higher installed
+- **INFOR EAM Web Services** access credentials (username, password, organization)
+- **INFOR EAM SOAP endpoint** URL
+- **Basic understanding** of ASP.NET Core applications
+- (Optional) **IIS** for production deployment
+
+### Verify .NET Installation
+
+```bash
+dotnet --version
+```
+
+You should see version 9.0.0 or higher.
+
+## Environment Setup
+
+### 1. Clone and Restore Dependencies
+
+First, clone the repository and restore all NuGet packages:
+
+```bash
+git clone <repository-url>
+cd hgt-eam-web-services
+dotnet restore
+```
+
+### 2. Project Structure
+
+The solution consists of three main projects:
+
+```
+HGT.EAM.WebServices/
+├── HGT.EAM.WebServices/              # Main API project
+├── HGT.EAM.WebServices.Infrastructure/ # Infrastructure layer
+└── HGT.EAM.WebServices.Conector/     # EAM connector layer
+```
+
+### 3. Key Dependencies
+
+The main project includes these essential packages:
+
+- **AspNetCore.Authentication.Basic** (9.0.0) - Basic authentication
+- **Microsoft.EntityFrameworkCore.Sqlite** (9.0.0) - Grid caching
+- **Scalar.AspNetCore** (2.11.0) - API documentation
+- **Mediator.SourceGenerator** (3.0.1) - CQRS pattern
+- **Serilog** - Structured logging
+- **Polly** (8.5.0) - Resilience policies
+
+## Database Configuration
+
+### SQLite Grid Cache
+
+The application uses SQLite for caching EAM grid data. The database is automatically created on first run.
+
+**Default location**: `gridcache.db` in the application root directory
+
+The cache database is created automatically during application startup:
+
+```csharp HGT.EAM.WebServices/Setup/Startup.cs
+using (var scope = app.Services.CreateScope())
+{
+    var gridCacheDb = scope.ServiceProvider.GetRequiredService<GridCacheDbContext>();
+    gridCacheDb.Database.EnsureCreated();
+}
+```
+
+### Connection String Configuration
+
+In `appsettings.json`, configure the SQLite connection:
+
+```json
+{
+  "ConnectionStrings": {
+    "GridCache": "Data Source=gridcache.db"
+  }
+}
+```
+
+<Note>
+The SQLite database includes a 30-second busy timeout to handle concurrent requests during cold starts. This is configured automatically in `ServiceCollectionExtensions.cs`.
+</Note>
+
+## INFOR EAM Connection Setup
+
+### Configure EAM Base URL
+
+Set the INFOR EAM Web Services SOAP endpoint:
+
+```json appsettings.json
+{
+  "EAMBaseUrl": "https://your-eam-server/axis/services"
+}
+```
+
+### Configure EAM Credentials
+
+Add one or more EAM user credentials in the `EAMCredentials` array:
+
+```json appsettings.json
+{
+  "EAMCredentials": [
+    {
+      "Username": "your-eam-username",
+      "Password": "your-eam-password",
+      "Organization": "YOUR_ORG"
+    },
+    {
+      "Username": "another-user",
+      "Password": "another-password",
+      "Organization": "ANOTHER_ORG"
+    }
+  ]
+}
+```
+
+<Warning>
+The credentials configured here are used for **Basic Authentication** to access the API. These should match the INFOR EAM user accounts that have permission to query grids.
+</Warning>
+
+### Configure EAM Grids
+
+Define the EAM grids you want to expose through the API:
+
+```json appsettings.json
+{
+  "EAMGrids": [
+    {
+      "GridName": "WSJOBS",
+      "UserFunction": "WSJOBS",
+      "GridId": 123,
+      "DataSpyIds": {
+        "PreviousDay": 1001,
+        "PreviousMonth": 1002,
+        "CurrentMonth": 1003,
+        "LastYear": 1004,
+        "Custom": 1005,
+        "AllRecords": 1000
+      },
+      "NumberRecordsFirstReturned": 500,
+      "CursorPosition": 0,
+      "HGTGridType": 1,
+      "HGTGridName": 1,
+      "FilterField": "CreationDate"
+    }
+  ],
+  "EAMDefaultRecords": 100
+}
+```
+
+<Accordion title="Grid Configuration Properties">
+  - **GridName**: EAM grid identifier
+  - **UserFunction**: EAM user function code
+  - **GridId**: Numeric grid identifier from EAM
+  - **DataSpyIds**: DataSpy IDs for different time filters
+  - **NumberRecordsFirstReturned**: Initial fetch size
+  - **CursorPosition**: Starting cursor position
+  - **HGTGridType**: Grid type enum value
+  - **HGTGridName**: Grid name enum value
+  - **FilterField**: Field used for filtering
+</Accordion>
+
+## Running in Development
+
+### Using .NET CLI
+
+Run the application directly:
+
+```bash
+dotnet run --project HGT.EAM.WebServices/HGT.EAM.WebServices.csproj
+```
+
+### Using Launch Profiles
+
+The project includes two launch profiles in `launchSettings.json`:
+
+```json HGT.EAM.WebServices/Properties/launchSettings.json
+{
+  "profiles": {
+    "https-qas": {
+      "commandName": "Project",
+      "launchBrowser": true,
+      "launchUrl": "scalar",
+      "applicationUrl": "https://localhost:7092;http://localhost:5074",
+      "environmentVariables": {
+        "ASPNETCORE_ENVIRONMENT": "Development"
+      }
+    },
+    "https-prod": {
+      "commandName": "Project",
+      "launchBrowser": true,
+      "launchUrl": "scalar",
+      "applicationUrl": "https://localhost:7092;http://localhost:5074",
+      "environmentVariables": {
+        "ASPNETCORE_ENVIRONMENT": "Stage"
+      }
+    }
+  }
+}
+```
+
+**Launch with a specific profile:**
+
+```bash
+dotnet run --project HGT.EAM.WebServices/HGT.EAM.WebServices.csproj --launch-profile https-qas
+```
+
+### Access the API Documentation
+
+Once running, navigate to:
+
+- **Scalar Documentation**: `https://localhost:7092/scalar`
+- **OpenAPI JSON**: `https://localhost:7092/openapi/v1.json`
+
+## Running in Production
+
+### Building for Production
+
+Create a production build:
+
+```bash
+dotnet publish HGT.EAM.WebServices/HGT.EAM.WebServices.csproj \
+  -c Release \
+  -o ./publish
+```
+
+### Environment-Specific Configuration
+
+Create environment-specific configuration files:
+
+- `appsettings.Development.json` - Development settings
+- `appsettings.Stage.json` - Staging settings  
+- `appsettings.Production.json` - Production settings
+
+These files override values from `appsettings.json` based on the `ASPNETCORE_ENVIRONMENT` variable.
+
+### IIS Deployment
+
+The project includes a `web.config` for IIS deployment:
+
+```xml HGT.EAM.WebServices/web.config
+<configuration>
+  <system.webServer>
+    <handlers>
+      <add name="aspNetCore" path="*" verb="*"
+           modules="AspNetCoreModuleV2" resourceType="Unspecified" />
+    </handlers>
+
+    <aspNetCore processPath="%LAUNCHER_PATH%"
+                arguments="%LAUNCHER_ARGS%"
+                stdoutLogEnabled="false"
+                stdoutLogFile=".\logs\stdout"
+                hostingModel="inprocess"
+                requestTimeout="00:30:00">
+      <environmentVariables>
+        <environmentVariable name="ASPNETCORE_ENVIRONMENT" value="$(EnvironmentName)" />
+      </environmentVariables>
+    </aspNetCore>
+
+    <urlCompression doStaticCompression="true" doDynamicCompression="true" />
+  </system.webServer>
+</configuration>
+```
+
+**Key IIS settings:**
+
+- **requestTimeout**: 30 minutes (handles large EAM grid fetches)
+- **hostingModel**: In-process for better performance
+- **urlCompression**: Enabled for JSON response compression
+
+### Deploying to IIS
+
+1. **Build and publish** the application:
+   ```bash
+   dotnet publish -c Release -o C:\inetpub\wwwroot\hgt-eam-api
+   ```
+
+2. **Create an IIS Application Pool** with:
+   - .NET CLR Version: No Managed Code
+   - Managed Pipeline Mode: Integrated
+
+3. **Create an IIS Site** pointing to the publish directory
+
+4. **Set the environment variable** in IIS or web.config
+
+5. **Grant permissions** to the IIS user for:
+   - Application directory
+   - `gridcache.db` location
+   - `logs/` directory
+
+### Production Environment Variables
+
+Set these environment variables in production:
+
+```bash
+ASPNETCORE_ENVIRONMENT=Production
+ASPNETCORE_URLS=https://+:443;http://+:80
+```
+
+## Verification
+
+### Health Check
+
+Verify the application is running:
+
+```bash
+curl -X GET https://localhost:7092/scalar \
+  -H "Accept: text/html"
+```
+
+### Test Authentication
+
+Test Basic Authentication:
+
+```bash
+curl -X GET https://localhost:7092/api/accounting/grid \
+  -u "your-eam-username:your-eam-password" \
+  -H "Accept: application/json"
+```
+
+### Verify Cache Creation
+
+Check that the SQLite cache database was created:
+
+```bash
+ls -l gridcache.db
+```
+
+## Troubleshooting
+
+### Issue: "EAMCredentials configuration section is missing"
+
+**Cause**: The `EAMCredentials` array is not configured in `appsettings.json`.
+
+**Solution**: Add at least one credential entry as shown in the [INFOR EAM Connection Setup](#configure-eam-credentials) section.
+
+### Issue: "EAMGrids configuration section is missing or empty"
+
+**Cause**: No grids are configured in the `EAMGrids` array.
+
+**Solution**: Add grid configurations as shown in the [Configure EAM Grids](#configure-eam-grids) section.
+
+### Issue: Database Lock Errors
+
+**Cause**: Multiple concurrent requests trying to initialize the SQLite database.
+
+**Solution**: The application includes automatic retry logic with a 30-second busy timeout. If issues persist, ensure only one application instance is initializing the database.
+
+### Issue: Cannot Connect to EAM Web Services
+
+**Cause**: Incorrect `EAMBaseUrl` or network connectivity issues.
+
+**Solution**: 
+1. Verify the EAM endpoint URL
+2. Test connectivity: `curl https://your-eam-server/axis/services`
+3. Check firewall rules
+4. Verify EAM credentials are correct
+
+### Issue: Rate Limit (429) Responses
+
+**Cause**: Exceeded 60 requests per minute per user/IP.
+
+**Solution**: See the [Rate Limiting Guide](/guides/rate-limiting) for details on handling rate limits.
+
+## Next Steps
+
+<CardGroup cols={2}>
+  <Card title="Configuration Reference" icon="gear" href="/guides/configuration">
+    Detailed reference for all configuration options
+  </Card>
+  <Card title="Rate Limiting" icon="gauge" href="/guides/rate-limiting">
+    Understanding and working with rate limits
+  </Card>
+  <Card title="API Reference" icon="code" href="/api/overview">
+    Explore available API endpoints
+  </Card>
+  <Card title="Architecture" icon="book" href="/concepts/architecture">
+    Understand the system architecture
+  </Card>
+</CardGroup>

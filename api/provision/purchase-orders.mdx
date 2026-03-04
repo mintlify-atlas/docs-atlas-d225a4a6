@@ -1,0 +1,385 @@
+---
+title: 'Purchase Orders'
+description: 'Purchase order audit and finance view endpoints'
+---
+
+## Get Purchase Order Audit
+
+<RequestExample>
+```bash cURL
+curl -X GET "https://api.example.com/api/provisions/purchase/order/audit?TypeFilter=3&Page=1&PagSize=50" \
+  -H "Authorization: Bearer YOUR_TOKEN"
+```
+</RequestExample>
+
+Retrieves purchase order audit data from the Auditoría órdenes de compra grid.
+
+### Endpoint
+
+```
+GET /api/provisions/purchase/order/audit
+```
+
+### Authentication
+
+This endpoint requires authentication via Bearer token.
+
+### Query Parameters
+
+<ParamField query="TypeFilter" type="integer" required>
+  Type of filter:
+  - `1` = Previous day
+  - `2` = Previous month
+  - `3` = Current month
+  - `4` = Previous year
+  - `5` = Specific month and year
+</ParamField>
+
+<ParamField query="Month" type="integer">
+  Specific month to search. Valid range: 1-12. Required when TypeFilter is 5.
+</ParamField>
+
+<ParamField query="Year" type="integer">
+  Specific year. Valid values from the previous year onwards. Required when TypeFilter is 5.
+</ParamField>
+
+<ParamField query="Page" type="integer" default="1">
+  Page number, starts with 1.
+</ParamField>
+
+<ParamField query="PagSize" type="integer">
+  Number of records to retrieve per page.
+</ParamField>
+
+### Response
+
+<ResponseField name="currentPage" type="integer">
+  The current page number being returned.
+</ResponseField>
+
+<ResponseField name="gridName" type="string">
+  Name of the grid (e.g., "AuditoriaOC").
+</ResponseField>
+
+<ResponseField name="gridId" type="integer">
+  Unique identifier for the grid.
+</ResponseField>
+
+<ResponseField name="totalRecordsReturned" type="integer">
+  Number of records returned in the current page.
+</ResponseField>
+
+<ResponseField name="totalPages" type="integer">
+  Total number of pages available.
+</ResponseField>
+
+<ResponseField name="totalRecords" type="integer">
+  Total number of records matching the query.
+</ResponseField>
+
+<ResponseField name="dataRecord" type="object">
+  Contains the field definitions and row data.
+  
+  <Expandable title="dataRecord properties">
+    <ResponseField name="fields" type="array">
+      Array of field definitions.
+      
+      <Expandable title="field object">
+        <ResponseField name="id" type="integer">
+          Field identifier.
+        </ResponseField>
+        
+        <ResponseField name="label" type="string">
+          Display label for the field.
+        </ResponseField>
+        
+        <ResponseField name="name" type="string">
+          Field name/key.
+        </ResponseField>
+        
+        <ResponseField name="order" type="integer">
+          Display order of the field.
+        </ResponseField>
+        
+        <ResponseField name="type" type="string">
+          Data type of the field.
+        </ResponseField>
+        
+        <ResponseField name="visible" type="boolean">
+          Whether the field is visible by default.
+        </ResponseField>
+        
+        <ResponseField name="width" type="integer">
+          Display width of the field.
+        </ResponseField>
+      </Expandable>
+    </ResponseField>
+    
+    <ResponseField name="rows" type="array">
+      Array of data rows, each represented as a dictionary with field names as keys.
+    </ResponseField>
+  </Expandable>
+</ResponseField>
+
+<ResponseExample>
+```json Response
+{
+  "currentPage": 1,
+  "gridName": "AuditoriaOC",
+  "gridId": 12346,
+  "totalRecordsReturned": 30,
+  "totalPages": 3,
+  "totalRecords": 85,
+  "dataRecord": {
+    "fields": [
+      {
+        "id": 1,
+        "label": "Order Number",
+        "name": "orderNumber",
+        "order": 1,
+        "type": "string",
+        "visible": true,
+        "width": 150
+      },
+      {
+        "id": 2,
+        "label": "Audit Date",
+        "name": "auditDate",
+        "order": 2,
+        "type": "date",
+        "visible": true,
+        "width": 120
+      },
+      {
+        "id": 3,
+        "label": "Status",
+        "name": "status",
+        "order": 3,
+        "type": "string",
+        "visible": true,
+        "width": 100
+      }
+    ],
+    "rows": [
+      {
+        "orderNumber": "PO-2026-001",
+        "auditDate": "2026-03-01T10:30:00Z",
+        "status": "Approved"
+      },
+      {
+        "orderNumber": "PO-2026-002",
+        "auditDate": "2026-03-02T14:15:00Z",
+        "status": "Pending"
+      }
+    ]
+  }
+}
+```
+</ResponseExample>
+
+### Response Codes
+
+- **200 OK**: Successfully retrieved purchase order audit data
+- **401 Unauthorized**: Missing or invalid authentication token
+- **500 Internal Server Error**: Server error occurred while processing the request
+
+### Caching
+
+This endpoint is cached for 900 seconds (15 minutes).
+
+---
+
+## Get Purchase Order Finance View
+
+<RequestExample>
+```bash cURL
+curl -X GET "https://api.example.com/api/provisions/view/purchase/order?TypeFilter=3&Page=1&PagSize=50" \
+  -H "Authorization: Bearer YOUR_TOKEN"
+```
+</RequestExample>
+
+Retrieves purchase order data from the finance view (Vista finanzas OC grid).
+
+### Endpoint
+
+```
+GET /api/provisions/view/purchase/order
+```
+
+### Authentication
+
+This endpoint requires authentication via Bearer token.
+
+### Query Parameters
+
+<ParamField query="TypeFilter" type="integer" required>
+  Type of filter:
+  - `1` = Previous day
+  - `2` = Previous month
+  - `3` = Current month
+  - `4` = Previous year
+  - `5` = Specific month and year
+</ParamField>
+
+<ParamField query="Month" type="integer">
+  Specific month to search. Valid range: 1-12. Required when TypeFilter is 5.
+</ParamField>
+
+<ParamField query="Year" type="integer">
+  Specific year. Valid values from the previous year onwards. Required when TypeFilter is 5.
+</ParamField>
+
+<ParamField query="Page" type="integer" default="1">
+  Page number, starts with 1.
+</ParamField>
+
+<ParamField query="PagSize" type="integer">
+  Number of records to retrieve per page.
+</ParamField>
+
+### Response
+
+<ResponseField name="currentPage" type="integer">
+  The current page number being returned.
+</ResponseField>
+
+<ResponseField name="gridName" type="string">
+  Name of the grid (e.g., "VistaFinanzasOC").
+</ResponseField>
+
+<ResponseField name="gridId" type="integer">
+  Unique identifier for the grid.
+</ResponseField>
+
+<ResponseField name="totalRecordsReturned" type="integer">
+  Number of records returned in the current page.
+</ResponseField>
+
+<ResponseField name="totalPages" type="integer">
+  Total number of pages available.
+</ResponseField>
+
+<ResponseField name="totalRecords" type="integer">
+  Total number of records matching the query.
+</ResponseField>
+
+<ResponseField name="dataRecord" type="object">
+  Contains the field definitions and row data.
+  
+  <Expandable title="dataRecord properties">
+    <ResponseField name="fields" type="array">
+      Array of field definitions.
+      
+      <Expandable title="field object">
+        <ResponseField name="id" type="integer">
+          Field identifier.
+        </ResponseField>
+        
+        <ResponseField name="label" type="string">
+          Display label for the field.
+        </ResponseField>
+        
+        <ResponseField name="name" type="string">
+          Field name/key.
+        </ResponseField>
+        
+        <ResponseField name="order" type="integer">
+          Display order of the field.
+        </ResponseField>
+        
+        <ResponseField name="type" type="string">
+          Data type of the field.
+        </ResponseField>
+        
+        <ResponseField name="visible" type="boolean">
+          Whether the field is visible by default.
+        </ResponseField>
+        
+        <ResponseField name="width" type="integer">
+          Display width of the field.
+        </ResponseField>
+      </Expandable>
+    </ResponseField>
+    
+    <ResponseField name="rows" type="array">
+      Array of data rows, each represented as a dictionary with field names as keys.
+    </ResponseField>
+  </Expandable>
+</ResponseField>
+
+<ResponseExample>
+```json Response
+{
+  "currentPage": 1,
+  "gridName": "VistaFinanzasOC",
+  "gridId": 12347,
+  "totalRecordsReturned": 20,
+  "totalPages": 5,
+  "totalRecords": 95,
+  "dataRecord": {
+    "fields": [
+      {
+        "id": 1,
+        "label": "Order Number",
+        "name": "orderNumber",
+        "order": 1,
+        "type": "string",
+        "visible": true,
+        "width": 150
+      },
+      {
+        "id": 2,
+        "label": "Amount",
+        "name": "amount",
+        "order": 2,
+        "type": "decimal",
+        "visible": true,
+        "width": 120
+      },
+      {
+        "id": 3,
+        "label": "Currency",
+        "name": "currency",
+        "order": 3,
+        "type": "string",
+        "visible": true,
+        "width": 80
+      },
+      {
+        "id": 4,
+        "label": "Supplier",
+        "name": "supplier",
+        "order": 4,
+        "type": "string",
+        "visible": true,
+        "width": 200
+      }
+    ],
+    "rows": [
+      {
+        "orderNumber": "PO-2026-001",
+        "amount": 15000.50,
+        "currency": "USD",
+        "supplier": "ABC Corporation"
+      },
+      {
+        "orderNumber": "PO-2026-002",
+        "amount": 8500.00,
+        "currency": "USD",
+        "supplier": "XYZ Industries"
+      }
+    ]
+  }
+}
+```
+</ResponseExample>
+
+### Response Codes
+
+- **200 OK**: Successfully retrieved purchase order finance view data
+- **401 Unauthorized**: Missing or invalid authentication token
+- **500 Internal Server Error**: Server error occurred while processing the request
+
+### Caching
+
+This endpoint is cached for 900 seconds (15 minutes).

@@ -1,0 +1,244 @@
+---
+title: 'Purchase Requests'
+description: 'Purchase request finance view endpoints'
+---
+
+## Get Purchase Request Finance View
+
+<RequestExample>
+```bash cURL
+curl -X GET "https://api.example.com/api/provisions/view/purchase/request?TypeFilter=3&Page=1&PagSize=50" \
+  -H "Authorization: Bearer YOUR_TOKEN"
+```
+</RequestExample>
+
+Retrieves purchase request data from the finance view (Vista finanzas SC grid).
+
+### Endpoint
+
+```
+GET /api/provisions/view/purchase/request
+```
+
+### Authentication
+
+This endpoint requires authentication via Bearer token.
+
+### Query Parameters
+
+<ParamField query="TypeFilter" type="integer" required>
+  Type of filter:
+  - `1` = Previous day
+  - `2` = Previous month
+  - `3` = Current month
+  - `4` = Previous year
+  - `5` = Specific month and year
+</ParamField>
+
+<ParamField query="Month" type="integer">
+  Specific month to search. Valid range: 1-12. Required when TypeFilter is 5.
+</ParamField>
+
+<ParamField query="Year" type="integer">
+  Specific year. Valid values from the previous year onwards. Required when TypeFilter is 5.
+</ParamField>
+
+<ParamField query="Page" type="integer" default="1">
+  Page number, starts with 1.
+</ParamField>
+
+<ParamField query="PagSize" type="integer">
+  Number of records to retrieve per page.
+</ParamField>
+
+### Response
+
+<ResponseField name="currentPage" type="integer">
+  The current page number being returned.
+</ResponseField>
+
+<ResponseField name="gridName" type="string">
+  Name of the grid (e.g., "VistaFinanzasSC").
+</ResponseField>
+
+<ResponseField name="gridId" type="integer">
+  Unique identifier for the grid.
+</ResponseField>
+
+<ResponseField name="totalRecordsReturned" type="integer">
+  Number of records returned in the current page.
+</ResponseField>
+
+<ResponseField name="totalPages" type="integer">
+  Total number of pages available.
+</ResponseField>
+
+<ResponseField name="totalRecords" type="integer">
+  Total number of records matching the query.
+</ResponseField>
+
+<ResponseField name="dataRecord" type="object">
+  Contains the field definitions and row data.
+  
+  <Expandable title="dataRecord properties">
+    <ResponseField name="fields" type="array">
+      Array of field definitions.
+      
+      <Expandable title="field object">
+        <ResponseField name="id" type="integer">
+          Field identifier.
+        </ResponseField>
+        
+        <ResponseField name="label" type="string">
+          Display label for the field.
+        </ResponseField>
+        
+        <ResponseField name="name" type="string">
+          Field name/key.
+        </ResponseField>
+        
+        <ResponseField name="order" type="integer">
+          Display order of the field.
+        </ResponseField>
+        
+        <ResponseField name="type" type="string">
+          Data type of the field.
+        </ResponseField>
+        
+        <ResponseField name="visible" type="boolean">
+          Whether the field is visible by default.
+        </ResponseField>
+        
+        <ResponseField name="width" type="integer">
+          Display width of the field.
+        </ResponseField>
+      </Expandable>
+    </ResponseField>
+    
+    <ResponseField name="rows" type="array">
+      Array of data rows, each represented as a dictionary with field names as keys.
+    </ResponseField>
+  </Expandable>
+</ResponseField>
+
+<ResponseExample>
+```json Response
+{
+  "currentPage": 1,
+  "gridName": "VistaFinanzasSC",
+  "gridId": 12348,
+  "totalRecordsReturned": 25,
+  "totalPages": 6,
+  "totalRecords": 142,
+  "dataRecord": {
+    "fields": [
+      {
+        "id": 1,
+        "label": "Request Number",
+        "name": "requestNumber",
+        "order": 1,
+        "type": "string",
+        "visible": true,
+        "width": 150
+      },
+      {
+        "id": 2,
+        "label": "Request Date",
+        "name": "requestDate",
+        "order": 2,
+        "type": "date",
+        "visible": true,
+        "width": 120
+      },
+      {
+        "id": 3,
+        "label": "Amount",
+        "name": "amount",
+        "order": 3,
+        "type": "decimal",
+        "visible": true,
+        "width": 120
+      },
+      {
+        "id": 4,
+        "label": "Status",
+        "name": "status",
+        "order": 4,
+        "type": "string",
+        "visible": true,
+        "width": 100
+      },
+      {
+        "id": 5,
+        "label": "Requester",
+        "name": "requester",
+        "order": 5,
+        "type": "string",
+        "visible": true,
+        "width": 150
+      }
+    ],
+    "rows": [
+      {
+        "requestNumber": "PR-2026-001",
+        "requestDate": "2026-03-01T00:00:00Z",
+        "amount": 5000.00,
+        "status": "Approved",
+        "requester": "John Doe"
+      },
+      {
+        "requestNumber": "PR-2026-002",
+        "requestDate": "2026-03-02T00:00:00Z",
+        "amount": 3500.50,
+        "status": "Pending",
+        "requester": "Jane Smith"
+      }
+    ]
+  }
+}
+```
+</ResponseExample>
+
+### Response Codes
+
+- **200 OK**: Successfully retrieved purchase request finance view data
+- **401 Unauthorized**: Missing or invalid authentication token
+- **500 Internal Server Error**: Server error occurred while processing the request
+
+### Caching
+
+This endpoint is cached for 900 seconds (15 minutes).
+
+## GridRequestParams Model
+
+All provision endpoints use the `GridRequestParams` model for query parameters. This model provides flexible date filtering and pagination options.
+
+### Filter Types
+
+The `TypeFilter` parameter supports the following values:
+
+- **1**: Previous day - Returns data from yesterday
+- **2**: Previous month - Returns data from the previous calendar month
+- **3**: Current month - Returns data from the current calendar month
+- **4**: Previous year - Returns data from the previous calendar year
+- **5**: Specific month and year - Returns data from a specific month/year combination (requires `Month` and `Year` parameters)
+
+### Examples
+
+#### Get current month data
+```bash
+curl -X GET "https://api.example.com/api/provisions/view/purchase/request?TypeFilter=3&Page=1&PagSize=100" \
+  -H "Authorization: Bearer YOUR_TOKEN"
+```
+
+#### Get data for a specific month
+```bash
+curl -X GET "https://api.example.com/api/provisions/view/purchase/request?TypeFilter=5&Month=2&Year=2026&Page=1&PagSize=50" \
+  -H "Authorization: Bearer YOUR_TOKEN"
+```
+
+#### Get previous day data
+```bash
+curl -X GET "https://api.example.com/api/provisions/view/purchase/request?TypeFilter=1&Page=1" \
+  -H "Authorization: Bearer YOUR_TOKEN"
+```
