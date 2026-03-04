@@ -13,7 +13,7 @@ Retrieves a paginated grid of accounting transactions.
 
 <auth-required />
 
-This endpoint requires authentication via Bearer token.
+This endpoint requires authentication via Basic Authentication.
 
 ### Query Parameters
 
@@ -118,18 +118,18 @@ This endpoint requires authentication via Bearer token.
 
 ```bash cURL
 curl -X GET "https://api.example.com/api/accounting/transactions?TypeFilter=3&Page=1&PagSize=50" \
-  -H "Authorization: Bearer YOUR_ACCESS_TOKEN" \
+  -H "Authorization: Basic <base64-credentials>" \
   -H "Accept: application/json"
 ```
 
 ```bash Get current month transactions
 curl -X GET "https://api.example.com/api/accounting/transactions?TypeFilter=3&Page=1&PagSize=100" \
-  -H "Authorization: Bearer YOUR_ACCESS_TOKEN"
+  -H "Authorization: Basic <base64-credentials>"
 ```
 
 ```bash Get specific month and year
 curl -X GET "https://api.example.com/api/accounting/transactions?TypeFilter=5&Month=6&Year=2025&Page=1&PagSize=50" \
-  -H "Authorization: Bearer YOUR_ACCESS_TOKEN"
+  -H "Authorization: Basic <base64-credentials>"
 ```
 
 ### Example Response

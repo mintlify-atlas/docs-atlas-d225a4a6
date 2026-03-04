@@ -126,7 +126,7 @@ This endpoint has response caching enabled with a duration of 900 seconds (15 mi
 
 ```bash
 curl -X GET "https://api.example.com/api/accounts-payable/invoice/vouchers/ecuador?TypeFilter=3&Page=1&PagSize=50" \
-  -H "Authorization: Bearer YOUR_TOKEN_HERE" \
+  -H "Authorization: Basic <base64-credentials>" \
   -H "Content-Type: application/json"
 ```
 

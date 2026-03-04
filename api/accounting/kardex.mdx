@@ -13,7 +13,7 @@ Retrieves the Kardex report. This endpoint represents the Cognos Kardex report, 
 
 <auth-required />
 
-This endpoint requires authentication via Bearer token.
+This endpoint requires authentication via Basic Authentication.
 
 ### Query Parameters
 
@@ -118,23 +118,23 @@ This endpoint requires authentication via Bearer token.
 
 ```bash cURL
 curl -X GET "https://api.example.com/api/accounting/kardex?TypeFilter=3&Page=1&PagSize=50" \
-  -H "Authorization: Bearer YOUR_ACCESS_TOKEN" \
+  -H "Authorization: Basic <base64-credentials>" \
   -H "Accept: application/json"
 ```
 
 ```bash Get current month kardex
 curl -X GET "https://api.example.com/api/accounting/kardex?TypeFilter=3&Page=1&PagSize=100" \
-  -H "Authorization: Bearer YOUR_ACCESS_TOKEN"
+  -H "Authorization: Basic <base64-credentials>"
 ```
 
 ```bash Get specific month and year
 curl -X GET "https://api.example.com/api/accounting/kardex?TypeFilter=5&Month=12&Year=2024&Page=1&PagSize=50" \
-  -H "Authorization: Bearer YOUR_ACCESS_TOKEN"
+  -H "Authorization: Basic <base64-credentials>"
 ```
 
 ```bash Get all records
 curl -X GET "https://api.example.com/api/accounting/kardex?TypeFilter=7&Page=1&PagSize=500" \
-  -H "Authorization: Bearer YOUR_ACCESS_TOKEN"
+  -H "Authorization: Basic <base64-credentials>"
 ```
 
 ### Example Response

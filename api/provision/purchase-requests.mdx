@@ -8,7 +8,7 @@ description: 'Purchase request finance view endpoints'
 <RequestExample>
 ```bash cURL
 curl -X GET "https://api.example.com/api/provisions/view/purchase/request?TypeFilter=3&Page=1&PagSize=50" \
-  -H "Authorization: Bearer YOUR_TOKEN"
+  -H "Authorization: Basic <base64-credentials>"
 ```
 </RequestExample>
 
@@ -22,7 +22,7 @@ GET /api/provisions/view/purchase/request
 
 ### Authentication
 
-This endpoint requires authentication via Bearer token.
+This endpoint requires authentication via Basic Authentication.
 
 ### Query Parameters
 
@@ -228,17 +228,17 @@ The `TypeFilter` parameter supports the following values:
 #### Get current month data
 ```bash
 curl -X GET "https://api.example.com/api/provisions/view/purchase/request?TypeFilter=3&Page=1&PagSize=100" \
-  -H "Authorization: Bearer YOUR_TOKEN"
+  -H "Authorization: Basic <base64-credentials>"
 ```
 
 #### Get data for a specific month
 ```bash
 curl -X GET "https://api.example.com/api/provisions/view/purchase/request?TypeFilter=5&Month=2&Year=2026&Page=1&PagSize=50" \
-  -H "Authorization: Bearer YOUR_TOKEN"
+  -H "Authorization: Basic <base64-credentials>"
 ```
 
 #### Get previous day data
 ```bash
 curl -X GET "https://api.example.com/api/provisions/view/purchase/request?TypeFilter=1&Page=1" \
-  -H "Authorization: Bearer YOUR_TOKEN"
+  -H "Authorization: Basic <base64-credentials>"
 ```

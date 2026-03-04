@@ -8,7 +8,7 @@ description: 'Contract general data endpoints'
 <RequestExample>
 ```bash cURL
 curl -X GET "https://api.example.com/api/provisions/contracts?TypeFilter=3&Page=1&PagSize=50" \
-  -H "Authorization: Bearer YOUR_TOKEN"
+  -H "Authorization: Basic <base64-credentials>"
 ```
 </RequestExample>
 
@@ -22,7 +22,7 @@ GET /api/provisions/contracts
 
 ### Authentication
 
-This endpoint requires authentication via Bearer token.
+This endpoint requires authentication via Basic Authentication.
 
 ### Query Parameters
 

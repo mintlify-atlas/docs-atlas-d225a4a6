@@ -8,7 +8,7 @@ description: 'Purchase order audit and finance view endpoints'
 <RequestExample>
 ```bash cURL
 curl -X GET "https://api.example.com/api/provisions/purchase/order/audit?TypeFilter=3&Page=1&PagSize=50" \
-  -H "Authorization: Bearer YOUR_TOKEN"
+  -H "Authorization: Basic <base64-credentials>"
 ```
 </RequestExample>
 
@@ -22,7 +22,7 @@ GET /api/provisions/purchase/order/audit
 
 ### Authentication
 
-This endpoint requires authentication via Bearer token.
+This endpoint requires authentication via Basic Authentication.
 
 ### Query Parameters
 
@@ -194,7 +194,7 @@ This endpoint is cached for 900 seconds (15 minutes).
 <RequestExample>
 ```bash cURL
 curl -X GET "https://api.example.com/api/provisions/view/purchase/order?TypeFilter=3&Page=1&PagSize=50" \
-  -H "Authorization: Bearer YOUR_TOKEN"
+  -H "Authorization: Basic <base64-credentials>"
 ```
 </RequestExample>
 
@@ -208,7 +208,7 @@ GET /api/provisions/view/purchase/order
 
 ### Authentication
 
-This endpoint requires authentication via Bearer token.
+This endpoint requires authentication via Basic Authentication.
 
 ### Query Parameters
 
